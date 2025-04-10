@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Acompanhamento de Produção de Vídeos</title>
+    <!-- TailwindCSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Ícones básicos já incorporados com CSS para evitar dependências externas */
+        .icon-up:after { content: "▲"; }
+        .icon-down:after { content: "▼"; }
+        .icon-edit:after { content: "✎"; }
+        .icon-checked:after { content: "☑"; }
+        .icon-unchecked:after { content: "☐"; }
+        .icon-calendar:after { content: "📅"; }
+        .icon-download:after { content: "💾"; }
+        .icon-upload:after { content: "📤"; }
+        .icon-delete:after { content: "🗑️"; }
+        .icon-left:after { content: "◀"; }
+        .icon-right:after { content: "▶"; }
+        .icon-coffee:after { content: "☕"; }
+        
+        /* Estilos para as células da matriz */
+        .calendar-cell {
+            height: 40px; /* Linha mais estreita */
+            vertical-align: top;
+            transition: background-color 0.3s;
+        }
+        
+        /* Estilos para o item destacado */
+        .highlighted-row {
+            animation: highlight 2s;
+        }
+        
+        @keyframes highlight {
+            0% { background-color: #FECACA; }
+            100% { background-color: transparent; }
+        }
+        
+        /* Barra de progresso */
+        .progress-bar {
+            height: 3px;
+            background-color: #e5e7eb;
+            margin-top: 1px;
+            width: 100%;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: #60A5FA;
+        }
+        
+        /* Estilo para tarefas arrastáveis */
+        .draggable {
+            cursor: grab;
+        }
+        
+        .draggable:active {
+            cursor: grabbing;
+        }
+        
+        /* Estilos para visualização responsiva */
+        @media (max-width: 768px) {
+            .task-table {
+                display: block;
+            }
+            
+            .task-table thead {
+                display: none;
+            }
+            
+            .task-table tbody {
+                display: block;
+            }
+            
+            .task-table tr {
+                display: flex;
+                flex-direction: column;
+                border: 1px solid #e5e7eb;
+                margin-bottom: 0.5rem;
+                padding: 0.5rem;
+                border-radius: 0.25rem;
+                background-color: white;
+            }
+            
+            .task-table td {
+                display: flex;
+                padding: 0.25rem 0;
+                border: none;
+            }
+            
+            .task-table td:before {
+                content: attr(data-label);
+                font-weight: bold;
+                width: 120px;
+                min-width: 120px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="app" class="p-4 max-w-7xl mx-auto">
+        <!-- Header com info de doação -->
+        <div class="flex flex-col md:flex-row justify-between items-center mb-4 bg-blue-50 p-3 rounded-lg shadow-sm">
+            <div class="flex items-center mb-2 md:mb-0">
+                <span class="icon-coffee mr-2 text-yellow-700"></span>
+                <p class="text-sm text-gray-700">Criado por Artur Martini. Me pague um café: Pix 51996668204</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="https://github.com/arturmartiniytb/ytbtracker" target="_blank" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+                    <span class="icon-download mr-1"></span>
+                    Última Versão
+                </a>
+                <span id="lastSaved" class="text-sm text-gray-600"></span>
+                <div class="flex gap-1">
+                    <button onclick="exportData()" class="p-1 rounded hover:bg-gray-200" title="Exportar dados">
+                        <span class="icon-download"></span>
+                    </button>
+                    <label class="p-1 rounded hover:bg-gray-200 cursor-pointer" title="Importar dados">
+                        <span class="icon-upload"></span>
+                        <input type="file" accept=".json" onchange="importData(event)" class="hidden">
+                    </label>
+                </div>
+            </div>
+        </div>
+        
+        <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">Sistema de Acompanhamento de Produção de Vídeos</h1>
+
+        <!-- Calendário -->
+        <div class="mb-8 overflow-x-auto bg-white rounded-lg shadow p-4" style="min-height: 300px;">
+            <div class="flex items-center justify-center gap-4 mb-4">
+                <button onclick="navigateMonth(-1)" class="p-1 hover:bg-gray-100 rounded" title="Mês anterior">
+                    <span class="icon-left"></span>
+                </button>
+                
+                <h2 class="text-xl font-semibold flex items-center gap-2">
+                    <span class="icon-calendar"></span>
+                    <span id="calendarTitle">Calendário de Produção</span>
+                </h2>
+                
+                <button onclick="navigateMonth(1)" class="p-1 hover:bg-gray-100 rounded" title="Próximo mês">
+                    <span class="icon-right"></span>
+                </button>
+            </div>
+            
+            <div id="calendarMatrix" class="min-w-max">
+                <!-- O calendário será gerado via JavaScript -->
+            </div>
+        </div>
+
+        <!-- Formulário -->
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">Registro de Tarefas</h2>
+                <button id="toggleFormBtn" class="p-1 rounded hover:bg-gray-100">
+                    <span class="icon-up"></span>
+                </button>
+            </div>
+
+            <div id="taskForm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Canal</label>
+                        <input
+                            type="text"
+                            id="channel"
+                            class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Nome do canal"
+                        >
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Código do Vídeo</label>
+                        <input
+                            type="text"
+                            id="videoCode"
+                            class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Código do vídeo (opcional)"
+                        >
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1">Título do Vídeo</label>
+                    <input
+                        type="text"
+                        id="title"
+                        maxlength="400"
+                        class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Título do vídeo (máx. 400 caracteres)"
+                        oninput="updateCharCount('title', 'titleCount', 400)"
+                    >
+                    <div id="titleCount" class="text-xs text-gray-500 mt-1">0/400 caracteres</div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1">Descrição</label>
+                    <textarea
+                        id="description"
+                        maxlength="2000"
+                        rows="3"
+                        class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Descrição do vídeo (máx. 2000 caracteres)"
+                        oninput="updateCharCount('description', 'descriptionCount', 2000)"
+                        onpaste="handlePaste(event)"
+                    ></textarea>
+                    <div id="descriptionCount" class="text-xs text-gray-500 mt-1">0/2000 caracteres</div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Data Programada</label>
+                        <div class="flex gap-2">
+                            <div class="w-1/3">
+                                <select id="scheduledDay" class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Dia</option>
+                                    <!-- Os dias serão preenchidos via JavaScript -->
+                                </select>
+                            </div>
+                            <div class="w-1/3">
+                                <select id="scheduledMonth" class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Mês</option>
+                                    <option value="0">Janeiro</option>
+                                    <option value="1">Fevereiro</option>
+                                    <option value="2">Março</option>
+                                    <option value="3">Abril</option>
+                                    <option value="4">Maio</option>
+                                    <option value="5">Junho</option>
+                                    <option value="6">Julho</option>
+                                    <option value="7">Agosto</option>
+                                    <option value="8">Setembro</option>
+                                    <option value="9">Outubro</option>
+                                    <option value="10">Novembro</option>
+                                    <option value="11">Dezembro</option>
+                                </select>
+                            </div>
+                            <div class="w-1/3">
+                                <select id="scheduledYear" class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Ano</option>
+                                    <!-- Os anos serão preenchidos via JavaScript -->
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                    <div class="flex items-center">
+                        <input type="checkbox" id="scriptDone" class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                        <label for="scriptDone" class="ml-2 text-sm text-gray-700">Roteiro</label>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="narrationDone" class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                        <label for="narrationDone" class="ml-2 text-sm text-gray-700">Narração</label>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="imagesDone" class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                        <label for="imagesDone" class="ml-2 text-sm text-gray-700">Imagens</label>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="editingDone" class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                        <label for="editingDone" class="ml-2 text-sm text-gray-700">Edição</label>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="coverDone" class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                        <label for="coverDone" class="ml-2 text-sm text-gray-700">Capa</label>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="onlineDone" class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                        <label for="onlineDone" class="ml-2 text-sm text-gray-700">Online</label>
+                    </div>
+                </div>
+
+                <button
+                    onclick="addTask()"
+                    class="w-full p-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                >
+                    Adicionar Vídeo
+                </button>
+            </div>
+        </div>
+
+        <!-- Lista de Tarefas -->
+        <div id="taskListContainer" class="mt-8 bg-white rounded-lg shadow p-4 hidden">
+            <h2 class="text-xl font-semibold mb-4">Lista de Tarefas</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 task-table">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Canal</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Título</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progresso</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descrição</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="taskList" class="bg-white divide-y divide-gray-200">
+                        <!-- Tasks serão inseridas dinamicamente aqui -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variáveis globais
+        let tasks = [];
+        let editingTaskId = null;
+        let editingField = null;
+        let showDescriptionId = null;
+        let showTaskForm = true;
+        let draggedTaskId = null;
+        let highlightedTaskId = null;
+
+        // Variáveis de data
+        const today = new Date();
+        const currentDay = today.getDate();
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+        
+        // Mês e ano de visualização do calendário
+        let viewMonth = currentMonth;
+        let viewYear = currentYear;
+        
+        // Nomes dos meses
+        const monthNames = [
+            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+        ];
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            // Preencher os anos no seletor (de hoje até 2030)
+            populateYearSelect();
+            
+            // Preencher os dias no seletor
+            updateDaySelect();
+            
+            // Configurar eventos para mudança de mês ou ano
+            document.getElementById('scheduledMonth').addEventListener('change', updateDaySelect);
+            document.getElementById('scheduledYear').addEventListener('change', updateDaySelect);
+
+            // Definir mês e ano atual no formulário
+            document.getElementById('scheduledMonth').value = currentMonth;
+            document.getElementById('scheduledYear').value = currentYear;
+            updateDaySelect();
+
+            // Atualizar título do calendário
+            updateCalendarTitle();
+            
+            // Carregar dados do localStorage
+            loadTasks();
+            
+            // Renderizar o calendário e as tarefas
+            renderCalendar();
+            renderTasks();
+            
+            // Configurar o botão de alternar o formulário
+            document.getElementById('toggleFormBtn').addEventListener('click', toggleTaskForm);
+
+            // Atualizar contador de caracteres inicial
+            updateCharCount('title', 'titleCount', 400);
+            updateCharCount('description', 'descriptionCount', 2000);
+            
+            // Verificar se há um ID de tarefa na URL para destacar
+            checkUrlForHighlight();
+        });
+        
+        // Verificar a URL para destacar uma tarefa específica
+        function checkUrlForHighlight() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const taskId = urlParams.get('highlight');
+            
+            if (taskId) {
+                setTimeout(() => {
+                    highlightTask(parseInt(taskId));
+                }, 500);
+            }
+        }
+        
+        // Destacar uma tarefa específica
+        function highlightTask(taskId) {
+            highlightedTaskId = taskId;
+            
+            // Primeiro, remover qualquer destaque existente
+            const allRows = document.querySelectorAll('#taskList tr');
+            allRows.forEach(row => {
+                row.classList.remove('highlighted-row');
+            });
+            
+            // Encontrar a linha da tarefa na tabela e destacá-la
+            const taskRow = document.getElementById(`task-row-${taskId}`);
+            if (taskRow) {
+                // Rolar até a tarefa
+                taskRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                // Adicionar a classe de destaque
+                taskRow.classList.add('highlighted-row');
+                
+                // Garantir que a descrição esteja visível
+                showDescriptionId = taskId;
+                renderTasks();
+            }
+        }
+        
+        // Lidar com a colagem de texto na descrição (remover espaço inicial)
+        function handlePaste(event) {
+            // Impedir o comportamento padrão
+            event.preventDefault();
+            
+            // Obter o texto da área de transferência
+            const text = (event.clipboardData || window.clipboardData).getData('text');
+            
+            // Inserir o texto sem o espaço inicial
+            const trimmedText = text.trimStart();
+            
+            // Obter o textarea e a posição do cursor
+            const textarea = event.target;
+            const startPos = textarea.selectionStart;
+            const endPos = textarea.selectionEnd;
+            
+            // Inserir o texto na posição do cursor
+            textarea.value = 
+                textarea.value.substring(0, startPos) + 
+                trimmedText + 
+                textarea.value.substring(endPos);
+            
+            // Ajustar a posição do cursor para depois do texto colado
+            textarea.selectionStart = startPos + trimmedText.length;
+            textarea.selectionEnd = startPos + trimmedText.length;
+            
+            // Atualizar o contador de caracteres
+            updateCharCount('description', 'descriptionCount', 2000);
+        }
+
+        // Navegar entre meses
+        function navigateMonth(direction) {
+            // Atualizar mês e ano de visualização
+            viewMonth += direction;
+            
+            // Tratamento de virada de ano
+            if (viewMonth > 11) {
+                viewMonth = 0;
+                viewYear++;
+            } else if (viewMonth < 0) {
+                viewMonth = 11;
+                viewYear--;
+            }
+            
+            // Atualizar título e calendário
+            updateCalendarTitle();
+            renderCalendar();
+        }
+
+        // Preencher a seleção de anos
+        function populateYearSelect() {
+            const yearSelect = document.getElementById('scheduledYear');
+            const startYear = currentYear;
+            const endYear = 2030;
+            
+            for (let year = startYear; year <= endYear; year++) {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                yearSelect.appendChild(option);
+            }
+        }
+
+        // Atualizar seleção de dias com base no mês e ano selecionados
+        function updateDaySelect() {
+            const daySelect = document.getElementById('scheduledDay');
+            const monthSelect = document.getElementById('scheduledMonth');
+            const yearSelect = document.getElementById('scheduledYear');
+            
+            const selectedMonth = parseInt(monthSelect.value);
+            const selectedYear = parseInt(yearSelect.value);
+            
+            // Limpar opção atual
+            daySelect.innerHTML = '<option value="">Dia</option>';
+            
+            // Se mês e ano não foram selecionados, não preencha os dias
+            if (isNaN(selectedMonth) || isNaN(selectedYear)) {
+                return;
+            }
+            
+            // Obter número de dias no mês selecionado
+            const daysInSelectedMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+            
+            // Preencher os dias
+            for (let day = 1; day <= daysInSelectedMonth; day++) {
+                const option = document.createElement('option');
+                option.value = day;
+                option.textContent = day;
+                daySelect.appendChild(option);
+            }
+        }
+
+        // Atualizar o título do calendário com o mês de visualização
+        function updateCalendarTitle() {
+            document.getElementById('calendarTitle').textContent = 
+                `Calendário de Produção - ${monthNames[viewMonth]} de ${viewYear}`;
+        }
+
+        // Alternar a visibilidade do formulário
+        function toggleTaskForm() {
+            showTaskForm = !showTaskForm;
+            const formContent = document.getElementById('taskForm');
+            const toggleBtn = document.getElementById('toggleFormBtn');
+            
+            if (showTaskForm) {
+                formContent.style.display = 'block';
+                toggleBtn.innerHTML = '<span class="icon-up"></span>';
+            } else {
+                formContent.style.display = 'none';
+                toggleBtn.innerHTML = '<span class="icon-down"></span>';
+            }
+        }
+
+        // Atualizar contador de caracteres
+        function updateCharCount(inputId, counterId, maxChars) {
+            const input = document.getElementById(inputId);
+            const counter = document.getElementById(counterId);
+            const currentLength = input.value.length;
+            counter.textContent = `${currentLength}/${maxChars} caracteres`;
+        }
+
+        // Carregar tarefas do localStorage
+        function loadTasks() {
+            const savedTasks = localStorage.getItem('videoProductionTasks');
+            if (savedTasks) {
+                try {
+                    const loadedTasks = JSON.parse(savedTasks);
+                    
+                    // Converter formato antigo (se existir) para o novo formato
+                    tasks = loadedTasks.map(task => {
+                        if (task.scheduledDay && !task.scheduledMonth && !task.scheduledYear) {
+                            // Formato antigo, converter para novo formato
+                            return {
+                                ...task,
+                                scheduledMonth: currentMonth,
+                                scheduledYear: currentYear
+                            };
+                        }
+                        return task;
+                    });
+                    
+                    updateLastSavedTime();
+                } catch (error) {
+                    console.error('Erro ao carregar dados salvos:', error);
+                }
+            }
+        }
+
+        // Salvar tarefas no localStorage
+        function saveTasks() {
+            localStorage.setItem('videoProductionTasks', JSON.stringify(tasks));
+            localStorage.setItem('lastSaved', Date.now().toString());
+            updateLastSavedTime();
+        }
+
+        // Atualizar a hora do último salvamento
+        function updateLastSavedTime() {
+            const lastSavedTime = localStorage.getItem('lastSaved');
+            if (lastSavedTime) {
+                const date = new Date(parseInt(lastSavedTime));
+                document.getElementById('lastSaved').textContent = `Último salvamento: ${date.toLocaleString()}`;
+            }
+        }
+        
+        // Calcular a porcentagem de conclusão de uma tarefa
+        function getTaskProgressPercent(task) {
+            const checkboxes = [
+                task.scriptDone, 
+                task.narrationDone, 
+                task.imagesDone, 
+                task.editingDone, 
+                task.coverDone, 
+                task.onlineDone
+            ];
+            
+            const totalItems = checkboxes.length;
+            const completedItems = checkboxes.filter(check => check).length;
+            
+            return Math.round((completedItems / totalItems) * 100);
+        }
+        
+        // Iniciar o arrasto de tarefa
+        function startDrag(event, taskId) {
+            draggedTaskId = taskId;
+            
+            // Adicionar classe visual para arrastar
+            event.currentTarget.classList.add('opacity-50');
+            
+            // Salvar dados da tarefa no evento de arrastar
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                event.dataTransfer.setData('text/plain', JSON.stringify({
+                    id: task.id,
+                    title: task.title,
+                    channel: task.channel,
+                    videoCode: task.videoCode
+                }));
+            }
+        }
+        
+        // Permitir soltar a tarefa
+        function allowDrop(event, day) {
+            event.preventDefault();
+            // Destacar visualmente onde a tarefa pode ser solta
+            event.currentTarget.classList.add('bg-blue-100');
+        }
+        
+        // Deixar de destacar ao sair
+        function dragLeave(event) {
+            event.currentTarget.classList.remove('bg-blue-100');
+        }
+        
+        // Processar a soltura da tarefa
+        function handleDrop(event, day) {
+            event.preventDefault();
+            event.currentTarget.classList.remove('bg-blue-100');
+            
+            if (draggedTaskId) {
+                // Atualizar a data da tarefa para o novo dia
+                tasks = tasks.map(task => {
+                    if (task.id === draggedTaskId) {
+                        return {
+                            ...task,
+                            scheduledDay: day,
+                            scheduledMonth: viewMonth,
+                            scheduledYear: viewYear
+                        };
+                    }
+                    return task;
+                });
+                
+                draggedTaskId = null;
+                
+                // Salvar tarefas e atualizar visualizações
+                saveTasks();
+                renderCalendar();
+                renderTasks();
+            }
+        }
+        
+        // Finalizar o arrasto
+        function endDrag(event) {
+            event.currentTarget.classList.remove('opacity-50');
+            // O draggedTaskId será limpo apenas quando for solto em um local válido
+        }
+
+        // Renderizar o calendário
+        function renderCalendar() {
+            const calendarMatrix = document.getElementById('calendarMatrix');
+            calendarMatrix.innerHTML = '';
+            
+            // Obter número de dias no mês de visualização
+            const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+            
+            // Verificar se está visualizando o mês atual
+            const isCurrentMonth = (viewMonth === currentMonth && viewYear === currentYear);
+            
+            // Obter canais únicos
+            const channels = [...new Set(tasks.filter(task => task.channel).map(task => task.channel))];
+            
+            // Criar a tabela do calendário
+            const table = document.createElement('table');
+            table.className = 'w-full border-collapse';
+            
+            // Criar o cabeçalho com os dias do mês
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            headerRow.className = 'bg-gray-100';
+            
+            // Célula para o nome do canal
+            const channelHeader = document.createElement('th');
+            channelHeader.className = 'p-2 border text-left font-medium';
+            channelHeader.textContent = 'Canal';
+            headerRow.appendChild(channelHeader);
+            
+            // Células para os dias do mês
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayHeader = document.createElement('th');
+                dayHeader.className = `p-1 border text-center font-medium w-12 ${isCurrentMonth && day === currentDay ? 'bg-blue-100' : ''}`;
+                dayHeader.textContent = day;
+                headerRow.appendChild(dayHeader);
+            }
+            
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+            
+            // Criar o corpo da tabela
+            const tbody = document.createElement('tbody');
+            
+            if (channels.length > 0) {
+                channels.forEach(channel => {
+                    const row = document.createElement('tr');
+                    
+                    // Célula para o nome do canal
+                    const channelCell = document.createElement('td');
+                    channelCell.className = 'p-2 border font-medium';
+                    channelCell.textContent = channel;
+                    row.appendChild(channelCell);
+                    
+                    // Células para os dias
+                    for (let day = 1; day <= daysInMonth; day++) {
+                        const dayCell = document.createElement('td');
+                        dayCell.className = `p-1 border align-top calendar-cell ${isCurrentMonth && day === currentDay ? 'bg-blue-50' : ''}`;
+                        
+                        // Configurar para permitir soltar tarefas
+                        dayCell.ondragover = (e) => allowDrop(e, day);
+                        dayCell.ondragleave = dragLeave;
+                        dayCell.ondrop = (e) => handleDrop(e, day);
+                        
+                        // Filtrar tarefas para este dia, mês, ano e canal
+                        const cellTasks = tasks.filter(task => 
+                            parseInt(task.scheduledDay) === day && 
+                            parseInt(task.scheduledMonth) === viewMonth &&
+                            parseInt(task.scheduledYear) === viewYear &&
+                            task.channel === channel
+                        );
+                        
+                        // Adicionar as tarefas a esta célula
+                        cellTasks.forEach(task => {
+                            const progressPercent = getTaskProgressPercent(task);
+                            let statusColor;
+                            
+                            if (progressPercent === 100) {
+                                statusColor = 'bg-green-200';
+                            } else if (progressPercent > 0) {
+                                statusColor = 'bg-yellow-200';
+                            } else {
+                                statusColor = 'bg-gray-200';
+                            }
+                            
+                            const taskDiv = document.createElement('div');
+                            taskDiv.className = `mb-1 p-1 text-xs rounded ${statusColor} truncate draggable`;
+                            taskDiv.title = task.title;
+                            taskDiv.textContent = `[${task.channel} ${task.videoCode || ''}]`;
+                            
+                            // Configurar como elemento arrastável
+                            taskDiv.draggable = true;
+                            taskDiv.ondragstart = (e) => startDrag(e, task.id);
+                            taskDiv.ondragend = endDrag;
+                            
+                            // Adicionar clique para navegar até a tarefa na lista
+                            taskDiv.onclick = () => {
+                                // Construir a URL com o parâmetro de destaque
+                                const currentUrl = new URL(window.location.href);
+                                currentUrl.searchParams.set('highlight', task.id);
+                                window.history.pushState({}, '', currentUrl);
+                                
+                                // Destacar a tarefa
+                                highlightTask(task.id);
+                            };
+                            
+                            // Adicionar barra de progresso
+                            const progressBar = document.createElement('div');
+                            progressBar.className = 'progress-bar';
+                            
+                            const progressFill = document.createElement('div');
+                            progressFill.className = 'progress-fill';
+                            progressFill.style.width = `${progressPercent}%`;
+                            
+                            progressBar.appendChild(progressFill);
+                            taskDiv.appendChild(progressBar);
+                            
+                            dayCell.appendChild(taskDiv);
+                        });
+                        
+                        row.appendChild(dayCell);
+                    }
+                    
+                    tbody.appendChild(row);
+                });
+            } else {
+                // Mensagem para quando não houver canais
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = daysInMonth + 1;
+                cell.className = 'p-4 text-center text-gray-500';
+                cell.textContent = 'Nenhum canal cadastrado. Adicione vídeos abaixo para popular a matriz.';
+                row.appendChild(cell);
+                tbody.appendChild(row);
+            }
+            
+            table.appendChild(tbody);
+            calendarMatrix.appendChild(table);
+        }
+
+        // Formatação da data para exibição (DD/MM/YYYY)
+        function formatDate(day, month, year) {
+            return `${day.toString().padStart(2, '0')}/${(parseInt(month) + 1).toString().padStart(2, '0')}/${year}`;
+        }
+
+        // Renderizar a lista de tarefas
+        function renderTasks() {
+            const taskList = document.getElementById('taskList');
+            const taskListContainer = document.getElementById('taskListContainer');
+            
+            // Mostrar/esconder o container de lista de tarefas
+            if (tasks.length > 0) {
+                taskListContainer.classList.remove('hidden');
+            } else {
+                taskListContainer.classList.add('hidden');
+                return;
+            }
+            
+            taskList.innerHTML = '';
+            
+            // Ordenar tarefas pelo ID (timestamp) em ordem decrescente
+            // para que as mais recentes apareçam no topo
+            const sortedTasks = [...tasks].sort((a, b) => b.id - a.id);
+            
+            sortedTasks.forEach(task => {
+                // Criando a linha principal
+                const row = document.createElement('tr');
+                row.id = `task-row-${task.id}`;
+                
+                // Adicionar classe de destaque se necessário
+                if (highlightedTaskId === task.id) {
+                    row.classList.add('highlighted-row');
+                }
+                
+                // Canal
+                let channelCell = document.createElement('td');
+                channelCell.className = 'px-4 py-2 whitespace-nowrap';
+                channelCell.dataset.label = 'Canal:';
+                channelCell.textContent = task.channel;
+                row.appendChild(channelCell);
+                
+                // Código
+                let codeCell = document.createElement('td');
+                codeCell.className = 'px-4 py-2 whitespace-nowrap';
+                codeCell.dataset.label = 'Código:';
+                codeCell.textContent = task.videoCode || '';
+                row.appendChild(codeCell);
+                
+                // Título
+                let titleCell = document.createElement('td');
+                titleCell.className = 'px-4 py-2';
+                titleCell.dataset.label = 'Título:';
+                
+                if (editingTaskId === task.id && editingField === 'title') {
+                    titleCell.innerHTML = `
+                        <input
+                            type="text"
+                            id="edit-title-${task.id}"
+                            value="${task.title}"
+                            class="w-full p-1 border rounded"
+                            maxlength="400"
+                            autofocus
+                        >
+                        <div class="flex justify-end mt-1">
+                            <button onclick="cancelEditing()" class="px-2 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-xs mr-1">Cancelar</button>
+                            <button onclick="saveEditing(${task.id}, 'title')" class="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs">Salvar</button>
+                        </div>
+                    `;
+                } else {
+                    titleCell.innerHTML = `
+                        <div class="truncate max-w-xs flex items-center" title="${task.title}" onclick="startEditing(${task.id}, 'title', '${escapeHtml(task.title)}')">
+                            ${task.title}
+                            <span class="icon-edit ml-1 text-gray-400 hover:text-gray-600 text-xs"></span>
+                        </div>
+                    `;
+                }
+                row.appendChild(titleCell);
+                
+                // Data
+                let dateCell = document.createElement('td');
+                dateCell.className = 'px-4 py-2 whitespace-nowrap';
+                dateCell.dataset.label = 'Data:';
+                
+                if (editingTaskId === task.id && editingField === 'scheduledDate') {
+                    dateCell.innerHTML = `
+                        <div class="flex flex-col gap-2">
+                            <select id="edit-day-${task.id}" class="p-1 border rounded">
+                                <!-- Dias serão preenchidos dinamicamente -->
+                            </select>
+                            <select id="edit-month-${task.id}" class="p-1 border rounded" onchange="updateEditDayOptions(${task.id})">
+                                <option value="0" ${task.scheduledMonth == 0 ? 'selected' : ''}>Janeiro</option>
+                                <option value="1" ${task.scheduledMonth == 1 ? 'selected' : ''}>Fevereiro</option>
+                                <option value="2" ${task.scheduledMonth == 2 ? 'selected' : ''}>Março</option>
+                                <option value="3" ${task.scheduledMonth == 3 ? 'selected' : ''}>Abril</option>
+                                <option value="4" ${task.scheduledMonth == 4 ? 'selected' : ''}>Maio</option>
+                                <option value="5" ${task.scheduledMonth == 5 ? 'selected' : ''}>Junho</option>
+                                <option value="6" ${task.scheduledMonth == 6 ? 'selected' : ''}>Julho</option>
+                                <option value="7" ${task.scheduledMonth == 7 ? 'selected' : ''}>Agosto</option>
+                                <option value="8" ${task.scheduledMonth == 8 ? 'selected' : ''}>Setembro</option>
+                                <option value="9" ${task.scheduledMonth == 9 ? 'selected' : ''}>Outubro</option>
+                                <option value="10" ${task.scheduledMonth == 10 ? 'selected' : ''}>Novembro</option>
+                                <option value="11" ${task.scheduledMonth == 11 ? 'selected' : ''}>Dezembro</option>
+                            </select>
+                            <select id="edit-year-${task.id}" class="p-1 border rounded" onchange="updateEditDayOptions(${task.id})">
+                                <!-- Anos serão preenchidos dinamicamente -->
+                            </select>
+                            <div class="flex justify-end mt-1">
+                                <button onclick="cancelEditing()" class="px-2 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-xs mr-1">Cancelar</button>
+                                <button onclick="saveEditedDate(${task.id})" class="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs">Salvar</button>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Preencher anos e dias dinamicamente após renderizar
+                    setTimeout(() => {
+                        fillEditYearOptions(task.id, task.scheduledYear);
+                        updateEditDayOptions(task.id, task.scheduledDay);
+                    }, 10);
+                } else {
+                    const dateStr = formatDate(
+                        task.scheduledDay, 
+                        task.scheduledMonth !== undefined ? task.scheduledMonth : currentMonth, 
+                        task.scheduledYear !== undefined ? task.scheduledYear : currentYear
+                    );
+                    
+                    dateCell.innerHTML = `
+                        <div class="flex items-center cursor-pointer" onclick="startEditingDate(${task.id})">
+                            ${dateStr}
+                            <span class="icon-edit ml-1 text-gray-400 hover:text-gray-600 text-xs"></span>
+                        </div>
+                    `;
+                }
+                row.appendChild(dateCell);
+                
+                // Status
+                const status = getTaskStatus(task);
+                let statusColor = 'bg-gray-100 text-gray-800';
+                
+                if (status === 'Em progresso') statusColor = 'bg-yellow-100 text-yellow-800';
+                if (status === 'Concluído') statusColor = 'bg-green-100 text-green-800';
+                
+                let statusCell = document.createElement('td');
+                statusCell.className = 'px-4 py-2 whitespace-nowrap';
+                statusCell.dataset.label = 'Status:';
+                statusCell.innerHTML = `
+                    <span class="px-2 py-1 text-xs rounded-full ${statusColor}">
+                        ${status}
+                    </span>
+                `;
+                row.appendChild(statusCell);
+                
+                // Progresso
+                let progressCell = document.createElement('td');
+                progressCell.className = 'px-4 py-2';
+                progressCell.dataset.label = 'Progresso:';
+                
+                const checkboxes = [
+                    { id: 'scriptDone', label: 'Roteiro' },
+                    { id: 'narrationDone', label: 'Narração' },
+                    { id: 'imagesDone', label: 'Imagens' },
+                    { id: 'editingDone', label: 'Edição' },
+                    { id: 'coverDone', label: 'Capa' },
+                    { id: 'onlineDone', label: 'Online' }
+                ];
+                
+                let progressHtml = '<div class="flex flex-wrap gap-2">';
+                
+                checkboxes.forEach(checkbox => {
+                    const isChecked = task[checkbox.id];
+                    progressHtml += `
+                        <button onclick="toggleTaskCheckbox(${task.id}, '${checkbox.id}')" class="flex items-center text-xs">
+                            <span class="${isChecked ? 'icon-checked text-green-600' : 'icon-unchecked text-gray-400'}"></span>
+                            <span class="ml-1">${checkbox.label}</span>
+                        </button>
+                    `;
+                });
+                
+                // Adicionar barra de progresso horizontal
+                const progressPercent = getTaskProgressPercent(task);
+                progressHtml += `
+                    <div class="w-full h-2 bg-gray-200 rounded-full mt-1">
+                        <div class="h-full bg-blue-500 rounded-full" style="width: ${progressPercent}%;"></div>
+                    </div>
+                    <span class="text-xs text-gray-600">${progressPercent}%</span>
+                `;
+                
+                progressHtml += '</div>';
+                progressCell.innerHTML = progressHtml;
+                row.appendChild(progressCell);
+                
+                // Descrição
+                let descriptionCell = document.createElement('td');
+                descriptionCell.className = 'px-4 py-2';
+                descriptionCell.dataset.label = 'Descrição:';
+                
+                if (showDescriptionId === task.id && editingTaskId === task.id && editingField === 'description') {
+                    descriptionCell.innerHTML = `<div class="text-xs text-gray-500">Editando descrição abaixo...</div>`;
+                } else {
+                    descriptionCell.innerHTML = `
+                        <button 
+                            onclick="toggleDescription(${task.id})"
+                            class="p-1 rounded hover:bg-gray-100 flex items-center text-xs text-gray-600"
+                        >
+                            ${showDescriptionId === task.id ? 
+                                `<span class="icon-up mr-1"></span> Ocultar` : 
+                                `<span class="icon-down mr-1"></span> Mostrar`
+                            }
+                        </button>
+                    `;
+                }
+                row.appendChild(descriptionCell);
+                
+                // Botão de excluir
+                let deleteCell = document.createElement('td');
+                deleteCell.className = 'px-4 py-2';
+                deleteCell.dataset.label = 'Ações:';
+                deleteCell.innerHTML = `
+                    <button 
+                        onclick="confirmDeleteTask(${task.id})"
+                        class="p-1 rounded hover:bg-red-100 text-red-600"
+                        title="Excluir tarefa"
+                    >
+                        <span class="icon-delete"></span>
+                    </button>
+                `;
+                row.appendChild(deleteCell);
+                
+                taskList.appendChild(row);
+                
+                // Adicionar a linha de descrição se estiver sendo exibida
+                if (showDescriptionId === task.id) {
+                    const descriptionRow = document.createElement('tr');
+                    const descriptionContent = document.createElement('td');
+                    descriptionContent.colSpan = 8; // Para todas as colunas
+                    descriptionContent.className = 'px-4 py-2 bg-gray-50';
+                    
+                    if (editingTaskId === task.id && editingField === 'description') {
+                        descriptionContent.innerHTML = `
+                            <div class="flex flex-col">
+                                <textarea
+                                    id="edit-description-${task.id}"
+                                    class="w-full p-2 border rounded mb-2"
+                                    rows="4"
+                                    maxlength="2000"
+                                    placeholder="Descrição do vídeo"
+                                    onpaste="handlePaste(event)"
+                                >${task.description || ''}</textarea>
+                                <div class="flex justify-end gap-2">
+                                    <span class="text-xs text-gray-500 self-center mr-2">
+                                        ${(task.description || '').length}/2000 caracteres
+                                    </span>
+                                    <button 
+                                        onclick="cancelEditing()" 
+                                        class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-sm"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button 
+                                        onclick="saveEditing(${task.id}, 'description')" 
+                                        class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                                    >
+                                        Salvar
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        descriptionContent.innerHTML = `
+                            <div 
+                                class="text-sm text-gray-700 whitespace-pre-wrap flex items-start"
+                                onclick="startEditing(${task.id}, 'description', '${escapeHtml(task.description || '')}')"
+                            >
+                                <div class="flex-grow">
+                                    ${task.description ? task.description : '<span class="text-gray-400 italic">Sem descrição</span>'}
+                                </div>
+                                <span class="icon-edit ml-2 text-gray-400 hover:text-gray-600 flex-shrink-0 mt-1"></span>
+                            </div>
+                        `;
+                    }
+                    
+                    descriptionRow.appendChild(descriptionContent);
+                    taskList.appendChild(descriptionRow);
+                }
+            });
+        }
+
+        // Iniciar edição da data
+        function startEditingDate(taskId) {
+            editingTaskId = taskId;
+            editingField = 'scheduledDate';
+            renderTasks();
+        }
+
+        // Preencher as opções de ano para edição
+        function fillEditYearOptions(taskId, selectedYear) {
+            const yearSelect = document.getElementById(`edit-year-${taskId}`);
+            if (!yearSelect) return;
+            
+            yearSelect.innerHTML = '';
+            
+            const startYear = currentYear;
+            const endYear = 2030;
+            
+            for (let year = startYear; year <= endYear; year++) {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                if (year == selectedYear) {
+                    option.selected = true;
+                }
+                yearSelect.appendChild(option);
+            }
+        }
+
+        // Atualizar opções de dia na edição de data
+        function updateEditDayOptions(taskId, selectedDay) {
+            const daySelect = document.getElementById(`edit-day-${taskId}`);
+            const monthSelect = document.getElementById(`edit-month-${taskId}`);
+            const yearSelect = document.getElementById(`edit-year-${taskId}`);
+            
+            if (!daySelect || !monthSelect || !yearSelect) return;
+            
+            const selectedMonth = parseInt(monthSelect.value);
+            const selectedYear = parseInt(yearSelect.value);
+            
+            // Limpar opções atuais
+            daySelect.innerHTML = '';
+            
+            // Obter número de dias no mês selecionado
+            const daysInSelectedMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+            
+            // Preencher os dias
+            for (let day = 1; day <= daysInSelectedMonth; day++) {
+                const option = document.createElement('option');
+                option.value = day;
+                option.textContent = day;
+                if (day == selectedDay) {
+                    option.selected = true;
+                }
+                daySelect.appendChild(option);
+            }
+        }
+
+        // Salvar a data editada
+        function saveEditedDate(taskId) {
+            const daySelect = document.getElementById(`edit-day-${taskId}`);
+            const monthSelect = document.getElementById(`edit-month-${taskId}`);
+            const yearSelect = document.getElementById(`edit-year-${taskId}`);
+            
+            if (!daySelect || !monthSelect || !yearSelect) return;
+            
+            const day = parseInt(daySelect.value);
+            const month = parseInt(monthSelect.value);
+            const year = parseInt(yearSelect.value);
+            
+            tasks = tasks.map(task => {
+                if (task.id === taskId) {
+                    return {
+                        ...task,
+                        scheduledDay: day,
+                        scheduledMonth: month,
+                        scheduledYear: year
+                    };
+                }
+                return task;
+            });
+            
+            editingTaskId = null;
+            editingField = null;
+            
+            saveTasks();
+            renderCalendar();
+            renderTasks();
+        }
+
+        // Escapar HTML para evitar problemas com aspas em strings
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Confirmar antes de excluir tarefa
+        function confirmDeleteTask(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (!task) return;
+            
+            if (confirm(`Tem certeza que deseja excluir o vídeo "${task.title}" do canal "${task.channel}"?`)) {
+                deleteTask(taskId);
+            }
+        }
+
+        // Excluir tarefa
+        function deleteTask(taskId) {
+            tasks = tasks.filter(task => task.id !== taskId);
+            saveTasks();
+            renderCalendar();
+            renderTasks();
+        }
+
+        // Adicionar uma nova tarefa
+        function addTask() {
+            const channel = document.getElementById('channel').value.trim();
+            const videoCode = document.getElementById('videoCode').value.trim();
+            const title = document.getElementById('title').value.trim();
+            const description = document.getElementById('description').value.trim();
+            const scheduledDay = document.getElementById('scheduledDay').value;
+            const scheduledMonth = document.getElementById('scheduledMonth').value;
+            const scheduledYear = document.getElementById('scheduledYear').value;
+            
+            if (!channel || !title || !scheduledDay || !scheduledMonth || !scheduledYear) {
+                alert('Por favor, preencha pelo menos o canal, título e data programada completa.');
+                return;
+            }
+            
+            const newTask = {
+                id: Date.now(),
+                channel,
+                videoCode,
+                title,
+                description,
+                scheduledDay,
+                scheduledMonth,
+                scheduledYear,
+                scriptDone: document.getElementById('scriptDone').checked,
+                narrationDone: document.getElementById('narrationDone').checked,
+                imagesDone: document.getElementById('imagesDone').checked,
+                editingDone: document.getElementById('editingDone').checked,
+                coverDone: document.getElementById('coverDone').checked,
+                onlineDone: document.getElementById('onlineDone').checked
+            };
+            
+            tasks.push(newTask);
+            saveTasks();
+            
+            // Limpar o formulário
+            document.getElementById('channel').value = '';
+            document.getElementById('videoCode').value = '';
+            document.getElementById('title').value = '';
+            document.getElementById('description').value = '';
+            document.getElementById('scheduledDay').value = '';
+            document.getElementById('scriptDone').checked = false;
+            document.getElementById('narrationDone').checked = false;
+            document.getElementById('imagesDone').checked = false;
+            document.getElementById('editingDone').checked = false;
+            document.getElementById('coverDone').checked = false;
+            document.getElementById('onlineDone').checked = false;
+            
+            // Atualizar contador de caracteres
+            updateCharCount('title', 'titleCount', 400);
+            updateCharCount('description', 'descriptionCount', 2000);
+            
+            // Atualizar visualizações
+            renderCalendar();
+            renderTasks();
+            
+            // Se estamos visualizando um mês diferente, vamos para o mês da nova tarefa
+            if (viewMonth !== parseInt(scheduledMonth) || viewYear !== parseInt(scheduledYear)) {
+                viewMonth = parseInt(scheduledMonth);
+                viewYear = parseInt(scheduledYear);
+                updateCalendarTitle();
+                renderCalendar();
+            }
+            
+            // Destacar a tarefa recém-adicionada
+            setTimeout(() => {
+                highlightTask(newTask.id);
+            }, 100);
+        }
+
+        // Iniciar edição de um campo
+        function startEditing(taskId, field, value) {
+            editingTaskId = taskId;
+            editingField = field;
+            
+            // Atualizar a visualização
+            renderTasks();
+            
+            // Focar no campo de edição
+            setTimeout(() => {
+                const editField = document.getElementById(`edit-${field}-${taskId}`);
+                if (editField) {
+                    editField.focus();
+                    if (field === 'title') {
+                        editField.select();
+                    }
+                }
+            }, 10);
+        }
+
+        // Salvar valor editado
+        function saveEditing(taskId, field) {
+            const editField = document.getElementById(`edit-${field}-${taskId}`);
+            if (!editField) return;
+            
+            const value = editField.value;
+            
+            tasks = tasks.map(task => {
+                if (task.id === taskId) {
+                    return {
+                        ...task,
+                        [field]: value
+                    };
+                }
+                return task;
+            });
+            
+            editingTaskId = null;
+            editingField = null;
+            
+            saveTasks();
+            renderCalendar();
+            renderTasks();
+        }
+
+        // Cancelar edição
+        function cancelEditing() {
+            editingTaskId = null;
+            editingField = null;
+            renderTasks();
+        }
+
+        // Alternar visibilidade da descrição
+        function toggleDescription(taskId) {
+            showDescriptionId = (showDescriptionId === taskId) ? null : taskId;
+            renderTasks();
+        }
+
+        // Alternar checkbox de uma tarefa
+        function toggleTaskCheckbox(taskId, field) {
+            tasks = tasks.map(task => {
+                if (task.id === taskId) {
+                    return {
+                        ...task,
+                        [field]: !task[field]
+                    };
+                }
+                return task;
+            });
+            
+            saveTasks();
+            renderCalendar();
+            renderTasks();
+        }
+
+        // Obter status de uma tarefa
+        function getTaskStatus(task) {
+            const checkboxes = [
+                task.scriptDone, 
+                task.narrationDone, 
+                task.imagesDone, 
+                task.editingDone, 
+                task.coverDone, 
+                task.onlineDone
+            ];
+            
+            if (checkboxes.every(check => check)) {
+                return 'Concluído';
+            } else if (checkboxes.some(check => check)) {
+                return 'Em progresso';
+            } else {
+                return 'Não iniciado';
+            }
+        }
+
+        // Exportar dados como arquivo JSON
+        function exportData() {
+            const dataStr = JSON.stringify(tasks, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `video-production-tasks-${new Date().toISOString().slice(0,10)}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+
+        // Importar dados de arquivo JSON
+        function importData(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const importedTasks = JSON.parse(e.target.result);
+                        tasks = importedTasks;
+                        saveTasks();
+                        renderCalendar();
+                        renderTasks();
+                    } catch (error) {
+                        alert('Erro ao importar arquivo. Certifique-se de que é um JSON válido.');
+                        console.error('Erro importando arquivo:', error);
+                    }
+                };
+                reader.readAsText(file);
+            }
+        }
+    </script>
+</body>
+</html>
