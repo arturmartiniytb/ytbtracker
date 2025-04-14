@@ -1,0 +1,1555 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Acompanhamento de Produção de Vídeos</title>
+    <!-- TailwindCSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Ícones básicos já incorporados com CSS para evitar dependências externas */
+        .icon-up:after { content: "▲"; }
+        .icon-down:after { content: "▼"; }
+        .icon-edit:after { content: "✎"; }
+        .icon-checked:after { content: "☑"; }
+        .icon-unchecked:after { content: "☐"; }
+        .icon-calendar:after { content: "📅"; }
+        .icon-download:after { content: "💾"; }
+        .icon-upload:after { content: "📤"; }
+        .icon-delete:after { content: "🗑️"; }
+        .icon-left:after { content: "◀"; }
+        .icon-right:after { content: "▶"; }
+        .icon-coffee:after { content: "☕"; }
+        .icon-top:after { content: "↑"; }
+        
+        /* Ícones para as tarefas */
+        .icon-script:after { content: "📝"; }
+        .icon-narration:after { content: "🎤"; }
+        .icon-images:after { content: "🖼️"; }
+        .icon-editing:after { content: "✂️"; }
+        .icon-cover:after { content: "🏞️"; }
+        .icon-online:after { content: "🌐"; }
+        .icon-exported:after { content: "📤"; }
+        .icon-audacity:after { content: "🎵"; }
+        
+        /* Destacar a tarefa selecionada */
+        .highlighted-task {
+            animation: highlight 2s ease-in-out;
+        }
+        
+        @keyframes highlight {
+            0%, 100% { background-color: transparent; }
+            50% { background-color: rgba(59, 130, 246, 0.2); }
+        }
+        
+        /* Barra de progresso */
+        .progress-bar {
+            height: 4px;
+            background-color: #e5e7eb;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #3b82f6;
+            transition: width 0.3s ease;
+        }
+        
+        /* Ajuste de largura fixa para os dias */
+        .day-column {
+            width: 100px;
+            min-width: 100px;
+        }
+        
+        /* Ajuste para linhas mais estreitas */
+        .narrow-row {
+            height: 28px; /* Ainda mais estreito */
+        }
+        
+        /* Destaque para canal e código */
+        .task-code {
+            font-weight: bold;
+            background-color: rgba(79, 70, 229, 0.1);
+            border-radius: 4px;
+            padding: 1px 3px;
+        }
+        
+        /* Manter a primeira coluna fixa */
+        .sticky-column {
+            position: sticky;
+            left: 0;
+            background-color: white;
+            z-index: 10;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+        
+        /* Botão para voltar ao topo */
+        .back-to-top {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #3b82f6;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 100;
+            transition: all 0.3s ease;
+        }
+        
+        .back-to-top:hover {
+            background-color: #2563eb;
+            transform: translateY(-2px);
+        }
+        
+        /* Botão de exclusão de canal */
+        .delete-channel-btn {
+            color: #ef4444;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            margin-left: 5px;
+        }
+        
+        .channel-name-cell:hover .delete-channel-btn {
+            opacity: 1;
+        }
+        
+        /* Ícones concluídos e não concluídos com maior contraste */
+        .task-icon {
+            display: inline-block;
+            margin-right: 2px;
+            width: 18px;
+            height: 18px;
+            line-height: 18px;
+            text-align: center;
+            border-radius: 3px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .task-done {
+            background-color: #22c55e; /* Verde mais forte */
+            color: white;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .task-not-done {
+            background-color: #e5e7eb; /* Cinza mais claro */
+            color: #9ca3af;
+            border: 1px dashed #d1d5db;
+        }
+        
+        /* Ícones em linha horizontal */
+        .task-icons-row {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 1px;
+            margin-top: 2px;
+        }
+        
+        /* Preservar posição de rolagem das divs com overflow */
+        .preserve-scroll {
+            scroll-behavior: smooth;
+            overscroll-behavior: none;
+        }
+        
+        /* Layout responsivo */
+        @media (max-width: 768px) {
+            .responsive-table {
+                display: block;
+            }
+            
+            .responsive-table tr {
+                display: flex;
+                flex-wrap: wrap;
+                margin-bottom: 10px;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+            }
+            
+            .responsive-table td {
+                flex: 1 1 50%;
+                border: none;
+                padding: 8px;
+            }
+            
+            .responsive-table th {
+                display: none;
+            }
+            
+            .task-label:before {
+                content: attr(data-label);
+                font-weight: bold;
+                display: block;
+                margin-bottom: 3px;
+                font-size: 0.75rem;
+                color: #6b7280;
+                text-transform: uppercase;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="app" class="p-4 max-w-7xl mx-auto">
+        <!-- Informações de doação e link para nova versão -->
+        <div class="flex justify-between items-center bg-blue-50 rounded-lg p-3 mb-4">
+            <div class="flex items-center">
+                <span class="icon-coffee mr-1"></span>
+                <span>Criado por Artur Martini. Me pague um café: Pix 51996668204</span>
+            </div>
+            <a href="https://github.com/arturmartiniytb/ytbtracker" target="_blank" class="text-blue-600 hover:text-blue-800 underline">
+                Última versão
+            </a>
+        </div>
+        
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">Sistema de Acompanhamento de Produção de Vídeos</h1>
+            <div class="flex items-center gap-2 text-sm text-gray-600">
+                <span id="lastSaved"></span>
+                <div class="flex gap-1">
+                    <button onclick="exportData()" class="p-1 rounded hover:bg-gray-200" title="Exportar dados">
+                        <span class="icon-download"></span>
+                    </button>
+                    <label class="p-1 rounded hover:bg-gray-200 cursor-pointer" title="Importar dados">
+                        <span class="icon-upload"></span>
+                        <input type="file" accept=".json" onchange="importData(event)" class="hidden">
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calendário -->
+        <div class="mb-8 overflow-x-auto bg-white rounded-lg shadow p-4 preserve-scroll" id="calendarContainer" style="min-height: 300px;">
+            <div class="flex items-center justify-center gap-4 mb-4">
+                <button onclick="navigateMonth(-1)" class="p-1 hover:bg-gray-100 rounded" title="Mês anterior">
+                    <span class="icon-left"></span>
+                </button>
+                
+                <h2 class="text-xl font-semibold flex items-center gap-2">
+                    <span class="icon-calendar"></span>
+                    <span id="calendarTitle">Calendário de Produção</span>
+                </h2>
+                
+                <button onclick="navigateMonth(1)" class="p-1 hover:bg-gray-100 rounded" title="Próximo mês">
+                    <span class="icon-right"></span>
+                </button>
+            </div>
+            
+            <div id="calendarMatrix" class="min-w-max">
+                <!-- O calendário será gerado via JavaScript -->
+            </div>
+        </div>
+
+        <!-- Formulário -->
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">Registro de Tarefas</h2>
+                <button id="toggleFormBtn" class="p-1 rounded hover:bg-gray-100">
+                    <span class="icon-up"></span>
+                </button>
+            </div>
+
+            <div id="taskForm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Canal</label>
+                        <input
+                            type="text"
+                            id="channel"
+                            class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Nome do canal"
+                        >
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Código do Vídeo</label>
+                        <input
+                            type="text"
+                            id="videoCode"
+                            class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Código do vídeo (opcional)"
+                        >
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1">Título do Vídeo</label>
+                    <input
+                        type="text"
+                        id="title"
+                        maxlength="400"
+                        class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Título do vídeo (máx. 400 caracteres)"
+                        oninput="updateCharCount('title', 'titleCount', 400)"
+                    >
+                    <div id="titleCount" class="text-xs text-gray-500 mt-1">0/400 caracteres</div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1">Descrição</label>
+                    <textarea
+                        id="description"
+                        maxlength="2000"
+                        rows="3"
+                        class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Descrição do vídeo (máx. 2000 caracteres)"
+                        oninput="updateCharCount('description', 'descriptionCount', 2000)"
+                    ></textarea>
+                    <div id="descriptionCount" class="text-xs text-gray-500 mt-1">0/2000 caracteres</div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Data Programada</label>
+                        <div class="flex gap-2">
+                            <div class="w-1/3">
+                                <select id="scheduledDay" class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Dia</option>
+                                    <!-- Os dias serão preenchidos via JavaScript -->
+                                </select>
+                            </div>
+                            <div class="w-1/3">
+                                <select id="scheduledMonth" class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Mês</option>
+                                    <option value="0">Janeiro</option>
+                                    <option value="1">Fevereiro</option>
+                                    <option value="2">Março</option>
+                                    <option value="3">Abril</option>
+                                    <option value="4">Maio</option>
+                                    <option value="5">Junho</option>
+                                    <option value="6">Julho</option>
+                                    <option value="7">Agosto</option>
+                                    <option value="8">Setembro</option>
+                                    <option value="9">Outubro</option>
+                                    <option value="10">Novembro</option>
+                                    <option value="11">Dezembro</option>
+                                </select>
+                            </div>
+                            <div class="w-1/3">
+                                <select id="scheduledYear" class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Ano</option>
+                                    <!-- Os anos serão preenchidos via JavaScript -->
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <div class="flex items-center">
+                        <input type="checkbox" id="scriptDone" class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                        <label for="scriptDone" class="ml-2 text-sm text-gray-700">Roteiro</label>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="narrationDone" class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                        <label for="narrationDone" class="ml-2 text-sm text-gray-700">Narração</label>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="audacityDone" class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                        <label for="audacityDone" class="ml-2 text-sm text-gray-700">Audacity</label>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="imagesDone" class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                        <label for="imagesDone" class="ml-2 text-sm text-gray-700">Imagens</label>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="editingDone" class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                        <label for="editingDone" class="ml-2 text-sm text-gray-700">Edição</label>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="coverDone" class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                        <label for="coverDone" class="ml-2 text-sm text-gray-700">Capa</label>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="exportedDone" class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                        <label for="exportedDone" class="ml-2 text-sm text-gray-700">Exportado</label>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="onlineDone" class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                        <label for="onlineDone" class="ml-2 text-sm text-gray-700">Online</label>
+                    </div>
+                </div>
+
+                <button
+                    onclick="addTask()"
+                    class="w-full p-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                >
+                    Adicionar Vídeo
+                </button>
+            </div>
+        </div>
+
+        <!-- Lista de Tarefas -->
+        <div id="taskListContainer" class="mt-8 bg-white rounded-lg shadow p-4 hidden">
+            <h2 class="text-xl font-semibold mb-4">Lista de Tarefas</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 responsive-table">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Canal</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Título</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progresso</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descrição</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="taskList" class="bg-white divide-y divide-gray-200">
+                        <!-- Tasks serão inseridas dinamicamente aqui -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Botão de voltar ao topo -->
+        <div class="back-to-top" onclick="scrollToTop()" title="Voltar ao topo">
+            <span class="icon-top"></span>
+        </div>
+    </div>
+
+    <script>
+        // Variáveis globais
+        let tasks = [];
+        let editingTaskId = null;
+        let editingField = null;
+        let showDescriptionId = null;
+        let showTaskForm = true;
+        let selectedChannel = null;
+        let draggedTaskId = null;
+        let calendarScrollPos = 0;
+
+        // Variáveis de data
+        const today = new Date();
+        const currentDay = today.getDate();
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+        
+        // Mês e ano de visualização do calendário
+        let viewMonth = currentMonth;
+        let viewYear = currentYear;
+        
+        // Nomes dos meses
+        const monthNames = [
+            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+        ];
+
+        // Ordem desejada das checkboxes
+        const checkboxOrder = [
+            { id: 'scriptDone', label: 'Roteiro', icon: 'icon-script' },
+            { id: 'narrationDone', label: 'Narração', icon: 'icon-narration' },
+            { id: 'audacityDone', label: 'Audacity', icon: 'icon-audacity' },
+            { id: 'imagesDone', label: 'Imagens', icon: 'icon-images' },
+            { id: 'editingDone', label: 'Edição', icon: 'icon-editing' },
+            { id: 'coverDone', label: 'Capa', icon: 'icon-cover' },
+            { id: 'exportedDone', label: 'Exportado', icon: 'icon-exported' },
+            { id: 'onlineDone', label: 'Online', icon: 'icon-online' }
+        ];
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            // Preencher os anos no seletor (de hoje até 2030)
+            populateYearSelect();
+            
+            // Preencher os dias no seletor
+            updateDaySelect();
+            
+            // Configurar eventos para mudança de mês ou ano
+            document.getElementById('scheduledMonth').addEventListener('change', updateDaySelect);
+            document.getElementById('scheduledYear').addEventListener('change', updateDaySelect);
+
+            // Definir mês e ano atual no formulário
+            document.getElementById('scheduledMonth').value = currentMonth;
+            document.getElementById('scheduledYear').value = currentYear;
+            updateDaySelect();
+
+            // Atualizar título do calendário
+            updateCalendarTitle();
+            
+            // Carregar dados do localStorage
+            loadTasks();
+            
+            // Renderizar o calendário e as tarefas
+            renderCalendar();
+            renderTasks();
+            
+            // Configurar o botão de alternar o formulário
+            document.getElementById('toggleFormBtn').addEventListener('click', toggleTaskForm);
+
+            // Atualizar contador de caracteres inicial
+            updateCharCount('title', 'titleCount', 400);
+            updateCharCount('description', 'descriptionCount', 2000);
+            
+            // Verificar se há um taskId na URL para destacar
+            const urlParams = new URLSearchParams(window.location.search);
+            const highlightTaskId = urlParams.get('highlight');
+            if (highlightTaskId) {
+                setTimeout(() => {
+                    highlightAndScrollToTask(parseInt(highlightTaskId));
+                }, 500);
+            }
+            
+            // Salvar posição de rolagem ao rolar o calendário
+            const calendarContainer = document.getElementById('calendarContainer');
+            calendarContainer.addEventListener('scroll', function() {
+                calendarScrollPos = calendarContainer.scrollLeft;
+            });
+            
+            // Restaurar posição de rolagem ao rolar a página verticalmente
+            window.addEventListener('scroll', function() {
+                // Pequeno atraso para permitir que o DOM se atualize
+                setTimeout(() => {
+                    calendarContainer.scrollLeft = calendarScrollPos;
+                }, 10);
+            });
+        });
+
+        // Função para rolar para o topo
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+
+        // Navegar entre meses
+        function navigateMonth(direction) {
+            // Salvar posição atual de rolagem
+            const calendarContainer = document.getElementById('calendarContainer');
+            calendarScrollPos = calendarContainer.scrollLeft;
+            
+            // Atualizar mês e ano de visualização
+            viewMonth += direction;
+            
+            // Tratamento de virada de ano
+            if (viewMonth > 11) {
+                viewMonth = 0;
+                viewYear++;
+            } else if (viewMonth < 0) {
+                viewMonth = 11;
+                viewYear--;
+            }
+            
+            // Atualizar título e calendário
+            updateCalendarTitle();
+            renderCalendar();
+            
+            // Restaurar posição de rolagem
+            setTimeout(() => {
+                calendarContainer.scrollLeft = calendarScrollPos;
+            }, 10);
+        }
+
+        // Preencher a seleção de anos
+        function populateYearSelect() {
+            const yearSelect = document.getElementById('scheduledYear');
+            const startYear = currentYear;
+            const endYear = 2030;
+            
+            for (let year = startYear; year <= endYear; year++) {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                yearSelect.appendChild(option);
+            }
+        }
+
+        // Atualizar seleção de dias com base no mês e ano selecionados
+        function updateDaySelect() {
+            const daySelect = document.getElementById('scheduledDay');
+            const monthSelect = document.getElementById('scheduledMonth');
+            const yearSelect = document.getElementById('scheduledYear');
+            
+            const selectedMonth = parseInt(monthSelect.value);
+            const selectedYear = parseInt(yearSelect.value);
+            
+            // Limpar opção atual
+            daySelect.innerHTML = '<option value="">Dia</option>';
+            
+            // Se mês e ano não foram selecionados, não preencha os dias
+            if (isNaN(selectedMonth) || isNaN(selectedYear)) {
+                return;
+            }
+            
+            // Obter número de dias no mês selecionado
+            const daysInSelectedMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+            
+            // Preencher os dias
+            for (let day = 1; day <= daysInSelectedMonth; day++) {
+                const option = document.createElement('option');
+                option.value = day;
+                option.textContent = day;
+                daySelect.appendChild(option);
+            }
+        }
+
+        // Atualizar o título do calendário com o mês de visualização
+        function updateCalendarTitle() {
+            document.getElementById('calendarTitle').textContent = 
+                `Calendário de Produção - ${monthNames[viewMonth]} de ${viewYear}`;
+        }
+
+        // Alternar a visibilidade do formulário
+        function toggleTaskForm() {
+            showTaskForm = !showTaskForm;
+            const formContent = document.getElementById('taskForm');
+            const toggleBtn = document.getElementById('toggleFormBtn');
+            
+            if (showTaskForm) {
+                formContent.style.display = 'block';
+                toggleBtn.innerHTML = '<span class="icon-up"></span>';
+            } else {
+                formContent.style.display = 'none';
+                toggleBtn.innerHTML = '<span class="icon-down"></span>';
+            }
+        }
+
+        // Atualizar contador de caracteres
+        function updateCharCount(inputId, counterId, maxChars) {
+            const input = document.getElementById(inputId);
+            const counter = document.getElementById(counterId);
+            const currentLength = input.value.length;
+            counter.textContent = `${currentLength}/${maxChars} caracteres`;
+        }
+
+        // Carregar tarefas do localStorage
+        function loadTasks() {
+            const savedTasks = localStorage.getItem('videoProductionTasks');
+            if (savedTasks) {
+                try {
+                    const loadedTasks = JSON.parse(savedTasks);
+                    
+                    // Converter formato antigo (se existir) para o novo formato
+                    tasks = loadedTasks.map(task => {
+                        let updatedTask = {...task};
+                        
+                        // Adicionar novos campos se não existirem
+                        if (updatedTask.exportedDone === undefined) {
+                            updatedTask.exportedDone = false;
+                        }
+                        if (updatedTask.audacityDone === undefined) {
+                            updatedTask.audacityDone = false;
+                        }
+                        
+                        // Converter formato de data antigo se necessário
+                        if (updatedTask.scheduledDay && !updatedTask.scheduledMonth && !updatedTask.scheduledYear) {
+                            updatedTask.scheduledMonth = currentMonth;
+                            updatedTask.scheduledYear = currentYear;
+                        }
+                        
+                        return updatedTask;
+                    });
+                    
+                    updateLastSavedTime();
+                } catch (error) {
+                    console.error('Erro ao carregar dados salvos:', error);
+                }
+            }
+        }
+
+        // Salvar tarefas no localStorage
+        function saveTasks() {
+            localStorage.setItem('videoProductionTasks', JSON.stringify(tasks));
+            localStorage.setItem('lastSaved', Date.now().toString());
+            updateLastSavedTime();
+        }
+
+        // Atualizar a hora do último salvamento
+        function updateLastSavedTime() {
+            const lastSavedTime = localStorage.getItem('lastSaved');
+            if (lastSavedTime) {
+                const date = new Date(parseInt(lastSavedTime));
+                document.getElementById('lastSaved').textContent = `Último salvamento: ${date.toLocaleString()}`;
+            }
+        }
+
+        // Excluir canal
+        function deleteChannel(channel) {
+            if (channel && confirm(`Tem certeza que deseja excluir TODAS as tarefas do canal "${channel}"?`)) {
+                tasks = tasks.filter(task => task.channel !== channel);
+                saveTasks();
+                renderCalendar();
+                renderTasks();
+            }
+        }
+
+        // Calcular o progresso de uma tarefa (percentual)
+        function calculateProgress(task) {
+            const checkboxStates = checkboxOrder.map(checkbox => task[checkbox.id]);
+            const completed = checkboxStates.filter(Boolean).length;
+            return (completed / checkboxStates.length) * 100;
+        }
+
+        // Obter cor com base no progresso
+        function getProgressColor(progress, checkboxes) {
+            if (progress === 0) return 'bg-gray-200'; // Não iniciado: cinza
+            if (progress === 100) return 'bg-green-200'; // Concluído: verde
+            
+            // Verificar quantas etapas faltam
+            const total = checkboxes.length;
+            const completed = checkboxes.filter(Boolean).length;
+            const remaining = total - completed;
+            
+            if (remaining <= 2) return 'bg-purple-200'; // Quase pronto (faltando 1-2): roxo
+            return 'bg-yellow-200'; // Em progresso: amarelo
+        }
+
+        // Destacar e rolar para uma tarefa específica
+        function highlightAndScrollToTask(taskId) {
+            const taskElement = document.getElementById(`task-${taskId}`);
+            if (taskElement) {
+                // Verificar se já está visível
+                const rect = taskElement.getBoundingClientRect();
+                const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+                
+                // Rolar até a tarefa se não estiver visível
+                if (!isVisible) {
+                    taskElement.scrollIntoView({ behavior: 'smooth' });
+                }
+                
+                // Adicionar classe de destaque
+                taskElement.classList.add('highlighted-task');
+                
+                // Remover a classe após a animação
+                setTimeout(() => {
+                    taskElement.classList.remove('highlighted-task');
+                }, 2000);
+                
+                // Expandir a descrição se estiver fechada
+                if (showDescriptionId !== taskId) {
+                    toggleDescription(taskId);
+                }
+            }
+        }
+
+        // Renderizar o calendário
+        function renderCalendar() {
+            // Salvar posição de rolagem atual
+            const calendarContainer = document.getElementById('calendarContainer');
+            const currentScrollPos = calendarContainer.scrollLeft;
+            
+            const calendarMatrix = document.getElementById('calendarMatrix');
+            calendarMatrix.innerHTML = '';
+            
+            // Obter número de dias no mês de visualização
+            const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+            
+            // Verificar se está visualizando o mês atual
+            const isCurrentMonth = (viewMonth === currentMonth && viewYear === currentYear);
+            
+            // Obter canais únicos
+            const channels = [...new Set(tasks.filter(task => task.channel).map(task => task.channel))];
+            
+            // Criar a tabela do calendário
+            const table = document.createElement('table');
+            table.className = 'w-full border-collapse';
+            
+            // Criar o cabeçalho com os dias do mês
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            headerRow.className = 'bg-gray-100';
+            
+            // Célula para o nome do canal
+            const channelHeader = document.createElement('th');
+            channelHeader.className = 'p-2 border text-left font-medium sticky-column';
+            channelHeader.textContent = 'Canal';
+            headerRow.appendChild(channelHeader);
+            
+            // Células para os dias do mês
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayHeader = document.createElement('th');
+                dayHeader.className = `p-2 border text-center font-medium day-column ${isCurrentMonth && day === currentDay ? 'bg-blue-100' : ''}`;
+                dayHeader.textContent = day;
+                headerRow.appendChild(dayHeader);
+            }
+            
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+            
+            // Criar o corpo da tabela
+            const tbody = document.createElement('tbody');
+            
+            if (channels.length > 0) {
+                channels.forEach(channel => {
+                    const row = document.createElement('tr');
+                    row.className = 'narrow-row';
+                    
+                    // Célula para o nome do canal
+                    const channelCell = document.createElement('td');
+                    channelCell.className = 'p-2 border font-medium sticky-column channel-name-cell';
+                    channelCell.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <span>${channel}</span>
+                            <span class="delete-channel-btn icon-delete" 
+                                onclick="deleteChannel('${channel.replace(/'/g, "\\'")}')" 
+                                title="Excluir canal ${channel}"></span>
+                        </div>
+                    `;
+                    row.appendChild(channelCell);
+                    
+                    // Células para os dias
+                    for (let day = 1; day <= daysInMonth; day++) {
+                        const dayCell = document.createElement('td');
+                        dayCell.className = `p-1 border align-top day-column ${isCurrentMonth && day === currentDay ? 'bg-blue-50' : ''}`;
+                        dayCell.setAttribute('data-day', day);
+                        dayCell.setAttribute('data-month', viewMonth);
+                        dayCell.setAttribute('data-year', viewYear);
+                        dayCell.setAttribute('data-channel', channel);
+                        
+                        // Configurar eventos para arrastar e soltar
+                        dayCell.ondragover = (e) => {
+                            e.preventDefault();
+                            dayCell.classList.add('bg-blue-50');
+                        };
+                        
+                        dayCell.ondragleave = () => {
+                            if (!(isCurrentMonth && day === currentDay)) {
+                                dayCell.classList.remove('bg-blue-50');
+                            }
+                        };
+                        
+                        dayCell.ondrop = (e) => {
+                            e.preventDefault();
+                            if (!(isCurrentMonth && day === currentDay)) {
+                                dayCell.classList.remove('bg-blue-50');
+                            }
+                            
+                            if (draggedTaskId) {
+                                const taskIndex = tasks.findIndex(t => t.id === draggedTaskId);
+                                if (taskIndex !== -1) {
+                                    tasks[taskIndex].scheduledDay = day;
+                                    tasks[taskIndex].scheduledMonth = viewMonth;
+                                    tasks[taskIndex].scheduledYear = viewYear;
+                                    
+                                    saveTasks();
+                                    renderCalendar();
+                                    renderTasks();
+                                    
+                                    // Restaurar posição de rolagem
+                                    setTimeout(() => {
+                                        const calendarContainer = document.getElementById('calendarContainer');
+                                        calendarContainer.scrollLeft = calendarScrollPos;
+                                    }, 10);
+                                }
+                                draggedTaskId = null;
+                            }
+                        };
+                        
+                        // Filtrar tarefas para este dia, mês, ano e canal
+                        const cellTasks = tasks.filter(task => 
+                            parseInt(task.scheduledDay) === day && 
+                            parseInt(task.scheduledMonth) === viewMonth &&
+                            parseInt(task.scheduledYear) === viewYear &&
+                            task.channel === channel
+                        );
+                        
+                        // Adicionar as tarefas a esta célula
+                        cellTasks.forEach(task => {
+                            // Criar array de checkboxes na ordem desejada
+                            const checkboxStates = checkboxOrder.map(checkbox => task[checkbox.id]);
+                            
+                            const progress = calculateProgress(task);
+                            const progressColor = getProgressColor(progress, checkboxStates);
+                            
+                            const taskDiv = document.createElement('div');
+                            taskDiv.className = `mb-1 p-1 text-xs rounded ${progressColor} truncate cursor-pointer`;
+                            taskDiv.draggable = true;
+                            taskDiv.setAttribute('data-task-id', task.id);
+                            taskDiv.title = task.title;
+                            
+                            // Evento para começar a arrastar
+                            taskDiv.ondragstart = (e) => {
+                                draggedTaskId = task.id;
+                            };
+                            
+                            // Evento de clique para navegar até a tarefa na lista
+                            taskDiv.onclick = () => {
+                                window.location.href = `?highlight=${task.id}#task-${task.id}`;
+                                highlightAndScrollToTask(task.id);
+                            };
+                            
+                            // Conteúdo da célula com destaque para código e canal
+                            taskDiv.innerHTML = `<span class="task-code">[${task.channel} ${task.videoCode || ''}]</span>`;
+                            
+                            // Barra de progresso
+                            const progressBar = document.createElement('div');
+                            progressBar.className = 'progress-bar mt-1';
+                            
+                            const progressFill = document.createElement('div');
+                            progressFill.className = 'progress-bar-fill';
+                            progressFill.style.width = `${progress}%`;
+                            
+                            progressBar.appendChild(progressFill);
+                            taskDiv.appendChild(progressBar);
+                            
+                            // Ícones para status em uma linha horizontal
+                            const iconsDiv = document.createElement('div');
+                            iconsDiv.className = 'task-icons-row';
+                            
+                            // Usar a ordem definida
+                            checkboxOrder.forEach(checkbox => {
+                                const isDone = task[checkbox.id];
+                                const iconSpan = document.createElement('span');
+                                iconSpan.className = `task-icon ${isDone ? 'task-done' : 'task-not-done'}`;
+                                iconSpan.innerHTML = `<span class="${checkbox.icon}"></span>`;
+                                iconSpan.setAttribute('data-checkbox', checkbox.id);
+                                iconSpan.setAttribute('data-task-id', task.id);
+                                
+                                // Evento para atualizar checkbox diretamente na matriz
+                                iconSpan.onclick = (e) => {
+                                    e.stopPropagation(); // Evitar propagar para o taskDiv
+                                    const checkboxId = e.target.getAttribute('data-checkbox') || 
+                                                     e.target.parentNode.getAttribute('data-checkbox');
+                                    const taskId = parseInt(e.target.getAttribute('data-task-id') || 
+                                                         e.target.parentNode.getAttribute('data-task-id'));
+                                    if (checkboxId && taskId) {
+                                        toggleTaskCheckbox(taskId, checkboxId);
+                                    }
+                                };
+                                
+                                iconsDiv.appendChild(iconSpan);
+                            });
+                            
+                            taskDiv.appendChild(iconsDiv);
+                            dayCell.appendChild(taskDiv);
+                        });
+                        
+                        row.appendChild(dayCell);
+                    }
+                    
+                    tbody.appendChild(row);
+                });
+            } else {
+                // Mensagem para quando não houver canais
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = daysInMonth + 1;
+                cell.className = 'p-4 text-center text-gray-500';
+                cell.textContent = 'Nenhum canal cadastrado. Adicione vídeos abaixo para popular a matriz.';
+                row.appendChild(cell);
+                tbody.appendChild(row);
+            }
+            
+            table.appendChild(tbody);
+            calendarMatrix.appendChild(table);
+            
+            // Restaurar posição de rolagem
+            setTimeout(() => {
+                calendarContainer.scrollLeft = currentScrollPos;
+            }, 10);
+        }
+
+        // Formatação da data para exibição (DD/MM/YYYY)
+        function formatDate(day, month, year) {
+            return `${day.toString().padStart(2, '0')}/${(parseInt(month) + 1).toString().padStart(2, '0')}/${year}`;
+        }
+
+        // Renderizar a lista de tarefas
+        function renderTasks() {
+            const taskList = document.getElementById('taskList');
+            const taskListContainer = document.getElementById('taskListContainer');
+            
+            // Mostrar/esconder o container de lista de tarefas
+            if (tasks.length > 0) {
+                taskListContainer.classList.remove('hidden');
+            } else {
+                taskListContainer.classList.add('hidden');
+                return;
+            }
+            
+            taskList.innerHTML = '';
+            
+            // Ordenar tarefas pelo ID (timestamp) em ordem decrescente
+            // para que as mais recentes apareçam no topo
+            const sortedTasks = [...tasks].sort((a, b) => b.id - a.id);
+            
+            sortedTasks.forEach(task => {
+                // Criando a linha principal
+                const row = document.createElement('tr');
+                row.id = `task-${task.id}`;
+                
+                // Canal
+                const channelCell = document.createElement('td');
+                channelCell.className = 'px-4 py-2 whitespace-nowrap';
+                channelCell.innerHTML = `<div class="task-label" data-label="Canal">${task.channel}</div>`;
+                row.appendChild(channelCell);
+                
+                // Código
+                const codeCell = document.createElement('td');
+                codeCell.className = 'px-4 py-2 whitespace-nowrap';
+                codeCell.innerHTML = `<div class="task-label" data-label="Código">${task.videoCode || ''}</div>`;
+                row.appendChild(codeCell);
+                
+                // Título
+                let titleCell = document.createElement('td');
+                titleCell.className = 'px-4 py-2';
+                
+                if (editingTaskId === task.id && editingField === 'title') {
+                    titleCell.innerHTML = `
+                        <div class="task-label" data-label="Título">
+                            <input
+                                type="text"
+                                id="edit-title-${task.id}"
+                                value="${escapeQuotes(task.title)}"
+                                class="w-full p-1 border rounded"
+                                maxlength="400"
+                                autofocus
+                            >
+                            <div class="flex justify-end mt-1">
+                                <button onclick="cancelEditing()" class="px-2 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-xs mr-1">Cancelar</button>
+                                <button onclick="saveEditing(${task.id}, 'title')" class="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs">Salvar</button>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    titleCell.innerHTML = `
+                        <div class="task-label" data-label="Título">
+                            <div class="truncate max-w-xs flex items-center cursor-pointer" title="${escapeQuotes(task.title)}" onclick="startEditing(${task.id}, 'title', '${escapeQuotes(task.title)}')">
+                                ${task.title}
+                                <span class="icon-edit ml-1 text-gray-400 hover:text-gray-600 text-xs"></span>
+                            </div>
+                        </div>
+                    `;
+                }
+                row.appendChild(titleCell);
+                
+                // Data
+                let dateCell = document.createElement('td');
+                dateCell.className = 'px-4 py-2 whitespace-nowrap';
+                
+                if (editingTaskId === task.id && editingField === 'scheduledDate') {
+                    dateCell.innerHTML = `
+                        <div class="task-label" data-label="Data">
+                            <div class="flex flex-col gap-2">
+                                <select id="edit-day-${task.id}" class="p-1 border rounded">
+                                    <!-- Dias serão preenchidos dinamicamente -->
+                                </select>
+                                <select id="edit-month-${task.id}" class="p-1 border rounded" onchange="updateEditDayOptions(${task.id})">
+                                    <option value="0" ${task.scheduledMonth == 0 ? 'selected' : ''}>Janeiro</option>
+                                    <option value="1" ${task.scheduledMonth == 1 ? 'selected' : ''}>Fevereiro</option>
+                                    <option value="2" ${task.scheduledMonth == 2 ? 'selected' : ''}>Março</option>
+                                    <option value="3" ${task.scheduledMonth == 3 ? 'selected' : ''}>Abril</option>
+                                    <option value="4" ${task.scheduledMonth == 4 ? 'selected' : ''}>Maio</option>
+                                    <option value="5" ${task.scheduledMonth == 5 ? 'selected' : ''}>Junho</option>
+                                    <option value="6" ${task.scheduledMonth == 6 ? 'selected' : ''}>Julho</option>
+                                    <option value="7" ${task.scheduledMonth == 7 ? 'selected' : ''}>Agosto</option>
+                                    <option value="8" ${task.scheduledMonth == 8 ? 'selected' : ''}>Setembro</option>
+                                    <option value="9" ${task.scheduledMonth == 9 ? 'selected' : ''}>Outubro</option>
+                                    <option value="10" ${task.scheduledMonth == 10 ? 'selected' : ''}>Novembro</option>
+                                    <option value="11" ${task.scheduledMonth == 11 ? 'selected' : ''}>Dezembro</option>
+                                </select>
+                                <select id="edit-year-${task.id}" class="p-1 border rounded" onchange="updateEditDayOptions(${task.id})">
+                                    <!-- Anos serão preenchidos dinamicamente -->
+                                </select>
+                                <div class="flex justify-end mt-1">
+                                    <button onclick="cancelEditing()" class="px-2 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-xs mr-1">Cancelar</button>
+                                    <button onclick="saveEditedDate(${task.id})" class="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs">Salvar</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Preencher anos e dias dinamicamente após renderizar
+                    setTimeout(() => {
+                        fillEditYearOptions(task.id, task.scheduledYear);
+                        updateEditDayOptions(task.id, task.scheduledDay);
+                    }, 10);
+                } else {
+                    const dateStr = formatDate(
+                        task.scheduledDay, 
+                        task.scheduledMonth !== undefined ? task.scheduledMonth : currentMonth, 
+                        task.scheduledYear !== undefined ? task.scheduledYear : currentYear
+                    );
+                    
+                    dateCell.innerHTML = `
+                        <div class="task-label" data-label="Data">
+                            <div class="flex items-center cursor-pointer" onclick="startEditingDate(${task.id})">
+                                ${dateStr}
+                                <span class="icon-edit ml-1 text-gray-400 hover:text-gray-600 text-xs"></span>
+                            </div>
+                        </div>
+                    `;
+                }
+                row.appendChild(dateCell);
+                
+                // Status
+                // Criar array de checkboxes na ordem desejada
+                const checkboxStates = checkboxOrder.map(checkbox => task[checkbox.id]);
+                
+                const status = getTaskStatus(task);
+                const progress = calculateProgress(task);
+                
+                let statusColor = 'bg-gray-100 text-gray-800'; // Não iniciado: cinza
+                if (status === 'Em progresso') {
+                    const remaining = checkboxStates.length - checkboxStates.filter(Boolean).length;
+                    if (remaining <= 2) {
+                        statusColor = 'bg-purple-100 text-purple-800'; // Quase pronto: roxo
+                    } else {
+                        statusColor = 'bg-yellow-100 text-yellow-800'; // Em progresso: amarelo
+                    }
+                }
+                if (status === 'Concluído') statusColor = 'bg-green-100 text-green-800'; // Concluído: verde
+                
+                const statusCell = document.createElement('td');
+                statusCell.className = 'px-4 py-2 whitespace-nowrap';
+                statusCell.innerHTML = `
+                    <div class="task-label" data-label="Status">
+                        <span class="px-2 py-1 text-xs rounded-full ${statusColor}">
+                            ${status}
+                        </span>
+                        <div class="progress-bar mt-1 w-full">
+                            <div class="progress-bar-fill" style="width: ${progress}%"></div>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">${Math.round(progress)}%</div>
+                    </div>
+                `;
+                row.appendChild(statusCell);
+                
+                // Progresso
+                let progressCell = document.createElement('td');
+                progressCell.className = 'px-4 py-2';
+                
+                let progressHtml = '<div class="task-label" data-label="Progresso"><div class="flex flex-wrap gap-2">';
+                
+                // Usar ordem personalizada
+                checkboxOrder.forEach(checkbox => {
+                    const isDone = task[checkbox.id];
+                    progressHtml += `
+                        <button onclick="toggleTaskCheckbox(${task.id}, '${checkbox.id}')" class="flex items-center text-xs">
+                            <span class="task-icon ${isDone ? 'task-done' : 'task-not-done'}">
+                                <span class="${checkbox.icon}"></span>
+                            </span>
+                            <span class="ml-1">${checkbox.label}</span>
+                        </button>
+                    `;
+                });
+                
+                progressHtml += '</div></div>';
+                progressCell.innerHTML = progressHtml;
+                row.appendChild(progressCell);
+                
+                // Descrição
+                let descriptionCell = document.createElement('td');
+                descriptionCell.className = 'px-4 py-2';
+                
+                if (showDescriptionId === task.id && editingTaskId === task.id && editingField === 'description') {
+                    descriptionCell.innerHTML = `<div class="task-label" data-label="Descrição"><div class="text-xs text-gray-500">Editando descrição abaixo...</div></div>`;
+                } else {
+                    descriptionCell.innerHTML = `
+                        <div class="task-label" data-label="Descrição">
+                            <button 
+                                onclick="toggleDescription(${task.id})"
+                                class="p-1 rounded hover:bg-gray-100 flex items-center text-xs text-gray-600"
+                            >
+                                ${showDescriptionId === task.id ? 
+                                    `<span class="icon-up mr-1"></span> Ocultar` : 
+                                    `<span class="icon-down mr-1"></span> Mostrar`
+                                }
+                            </button>
+                        </div>
+                    `;
+                }
+                row.appendChild(descriptionCell);
+                
+                // Botão de excluir
+                let deleteCell = document.createElement('td');
+                deleteCell.className = 'px-4 py-2';
+                deleteCell.innerHTML = `
+                    <div class="task-label" data-label="Ações">
+                        <button 
+                            onclick="confirmDeleteTask(${task.id})"
+                            class="p-1 rounded hover:bg-red-100 text-red-600"
+                            title="Excluir tarefa"
+                        >
+                            <span class="icon-delete"></span>
+                        </button>
+                    </div>
+                `;
+                row.appendChild(deleteCell);
+                
+                taskList.appendChild(row);
+                
+                // Adicionar a linha de descrição se estiver sendo exibida
+                if (showDescriptionId === task.id) {
+                    const descriptionRow = document.createElement('tr');
+                    const descriptionContent = document.createElement('td');
+                    descriptionContent.colSpan = 8; // Para todas as colunas
+                    descriptionContent.className = 'px-4 py-2 bg-gray-50';
+                    
+                    if (editingTaskId === task.id && editingField === 'description') {
+                        descriptionContent.innerHTML = `
+                            <div class="flex flex-col">
+                                <textarea
+                                    id="edit-description-${task.id}"
+                                    class="w-full p-2 border rounded mb-2"
+                                    rows="4"
+                                    maxlength="2000"
+                                    placeholder="Descrição do vídeo"
+                                >${task.description || ''}</textarea>
+                                <div class="flex justify-end gap-2">
+                                    <span class="text-xs text-gray-500 self-center mr-2">
+                                        ${(task.description || '').length}/2000 caracteres
+                                    </span>
+                                    <button 
+                                        onclick="cancelEditing()" 
+                                        class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-sm"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button 
+                                        onclick="saveEditing(${task.id}, 'description')" 
+                                        class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                                    >
+                                        Salvar
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        descriptionContent.innerHTML = `
+                            <div 
+                                class="text-sm text-gray-700 whitespace-pre-wrap flex items-start cursor-pointer"
+                                onclick="startEditing(${task.id}, 'description', '${escapeQuotes(task.description || '')}')"
+                            >
+                                <div class="flex-grow">
+                                    ${task.description ? task.description : '<span class="text-gray-400 italic">Sem descrição</span>'}
+                                </div>
+                                <span class="icon-edit ml-2 text-gray-400 hover:text-gray-600 flex-shrink-0 mt-1"></span>
+                            </div>
+                        `;
+                    }
+                    
+                    descriptionRow.appendChild(descriptionContent);
+                    taskList.appendChild(descriptionRow);
+                }
+            });
+        }
+
+        // Iniciar edição da data
+        function startEditingDate(taskId) {
+            editingTaskId = taskId;
+            editingField = 'scheduledDate';
+            renderTasks();
+        }
+
+        // Preencher as opções de ano para edição
+        function fillEditYearOptions(taskId, selectedYear) {
+            const yearSelect = document.getElementById(`edit-year-${taskId}`);
+            if (!yearSelect) return;
+            
+            yearSelect.innerHTML = '';
+            
+            const startYear = currentYear;
+            const endYear = 2030;
+            
+            for (let year = startYear; year <= endYear; year++) {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                if (year == selectedYear) {
+                    option.selected = true;
+                }
+                yearSelect.appendChild(option);
+            }
+        }
+
+        // Atualizar opções de dia na edição de data
+        function updateEditDayOptions(taskId, selectedDay) {
+            const daySelect = document.getElementById(`edit-day-${taskId}`);
+            const monthSelect = document.getElementById(`edit-month-${taskId}`);
+            const yearSelect = document.getElementById(`edit-year-${taskId}`);
+            
+            if (!daySelect || !monthSelect || !yearSelect) return;
+            
+            const selectedMonth = parseInt(monthSelect.value);
+            const selectedYear = parseInt(yearSelect.value);
+            
+            // Limpar opções atuais
+            daySelect.innerHTML = '';
+            
+            // Obter número de dias no mês selecionado
+            const daysInSelectedMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+            
+            // Preencher os dias
+            for (let day = 1; day <= daysInSelectedMonth; day++) {
+                const option = document.createElement('option');
+                option.value = day;
+                option.textContent = day;
+                if (day == selectedDay) {
+                    option.selected = true;
+                }
+                daySelect.appendChild(option);
+            }
+        }
+
+        // Salvar a data editada
+        function saveEditedDate(taskId) {
+            const daySelect = document.getElementById(`edit-day-${taskId}`);
+            const monthSelect = document.getElementById(`edit-month-${taskId}`);
+            const yearSelect = document.getElementById(`edit-year-${taskId}`);
+            
+            if (!daySelect || !monthSelect || !yearSelect) return;
+            
+            const day = parseInt(daySelect.value);
+            const month = parseInt(monthSelect.value);
+            const year = parseInt(yearSelect.value);
+            
+            tasks = tasks.map(task => {
+                if (task.id === taskId) {
+                    return {
+                        ...task,
+                        scheduledDay: day,
+                        scheduledMonth: month,
+                        scheduledYear: year
+                    };
+                }
+                return task;
+            });
+            
+            editingTaskId = null;
+            editingField = null;
+            
+            saveTasks();
+            renderCalendar();
+            renderTasks();
+        }
+
+        // Escapar aspas para evitar problemas com HTML
+        function escapeQuotes(unsafe) {
+            if (!unsafe) return '';
+            return unsafe.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+        }
+
+        // Confirmar antes de excluir tarefa
+        function confirmDeleteTask(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (!task) return;
+            
+            if (confirm(`Tem certeza que deseja excluir o vídeo "${task.title}" do canal "${task.channel}"?`)) {
+                deleteTask(taskId);
+            }
+        }
+
+        // Excluir tarefa
+        function deleteTask(taskId) {
+            tasks = tasks.filter(task => task.id !== taskId);
+            saveTasks();
+            renderCalendar();
+            renderTasks();
+        }
+
+        // Adicionar uma nova tarefa
+        function addTask() {
+            const channel = document.getElementById('channel').value.trim();
+            const videoCode = document.getElementById('videoCode').value.trim();
+            const title = document.getElementById('title').value.trim();
+            // Remover espaço no início da descrição
+            const description = document.getElementById('description').value.trimStart();
+            const scheduledDay = document.getElementById('scheduledDay').value;
+            const scheduledMonth = document.getElementById('scheduledMonth').value;
+            const scheduledYear = document.getElementById('scheduledYear').value;
+            
+            if (!channel || !title || !scheduledDay || !scheduledMonth || !scheduledYear) {
+                alert('Por favor, preencha pelo menos o canal, título e data programada completa.');
+                return;
+            }
+            
+            const newTask = {
+                id: Date.now(),
+                channel,
+                videoCode,
+                title,
+                description,
+                scheduledDay,
+                scheduledMonth,
+                scheduledYear,
+                scriptDone: document.getElementById('scriptDone').checked,
+                narrationDone: document.getElementById('narrationDone').checked,
+                imagesDone: document.getElementById('imagesDone').checked,
+                editingDone: document.getElementById('editingDone').checked,
+                coverDone: document.getElementById('coverDone').checked,
+                onlineDone: document.getElementById('onlineDone').checked,
+                exportedDone: document.getElementById('exportedDone').checked,
+                audacityDone: document.getElementById('audacityDone').checked
+            };
+            
+            tasks.push(newTask);
+            saveTasks();
+            
+            // Limpar o formulário
+            document.getElementById('channel').value = '';
+            document.getElementById('videoCode').value = '';
+            document.getElementById('title').value = '';
+            document.getElementById('description').value = '';
+            document.getElementById('scheduledDay').value = '';
+            document.getElementById('scriptDone').checked = false;
+            document.getElementById('narrationDone').checked = false;
+            document.getElementById('imagesDone').checked = false;
+            document.getElementById('editingDone').checked = false;
+            document.getElementById('coverDone').checked = false;
+            document.getElementById('onlineDone').checked = false;
+            document.getElementById('exportedDone').checked = false;
+            document.getElementById('audacityDone').checked = false;
+            
+            // Atualizar contador de caracteres
+            updateCharCount('title', 'titleCount', 400);
+            updateCharCount('description', 'descriptionCount', 2000);
+            
+            // Atualizar visualizações
+            renderCalendar();
+            renderTasks();
+        }
+
+        // Iniciar edição de um campo
+        function startEditing(taskId, field, value) {
+            editingTaskId = taskId;
+            editingField = field;
+            
+            // Atualizar a visualização
+            renderTasks();
+            
+            // Focar no campo de edição
+            setTimeout(() => {
+                const editField = document.getElementById(`edit-${field}-${taskId}`);
+                if (editField) {
+                    editField.focus();
+                    if (field === 'title') {
+                        editField.select();
+                    }
+                }
+            }, 10);
+        }
+
+        // Salvar valor editado
+        function saveEditing(taskId, field) {
+            const editField = document.getElementById(`edit-${field}-${taskId}`);
+            if (!editField) return;
+            
+            // Remover espaço no início para descrição
+            const value = field === 'description' ? editField.value.trimStart() : editField.value;
+            
+            tasks = tasks.map(task => {
+                if (task.id === taskId) {
+                    return {
+                        ...task,
+                        [field]: value
+                    };
+                }
+                return task;
+            });
+            
+            editingTaskId = null;
+            editingField = null;
+            
+            saveTasks();
+            renderCalendar();
+            renderTasks();
+        }
+
+        // Cancelar edição
+        function cancelEditing() {
+            editingTaskId = null;
+            editingField = null;
+            renderTasks();
+        }
+
+        // Alternar visibilidade da descrição
+        function toggleDescription(taskId) {
+            showDescriptionId = (showDescriptionId === taskId) ? null : taskId;
+            renderTasks();
+        }
+
+        // Alternar checkbox de uma tarefa
+        function toggleTaskCheckbox(taskId, field) {
+            tasks = tasks.map(task => {
+                if (task.id === taskId) {
+                    return {
+                        ...task,
+                        [field]: !task[field]
+                    };
+                }
+                return task;
+            });
+            
+            saveTasks();
+            renderCalendar();
+            renderTasks();
+            
+            // Restaurar posição de rolagem do calendário
+            setTimeout(() => {
+                const calendarContainer = document.getElementById('calendarContainer');
+                calendarContainer.scrollLeft = calendarScrollPos;
+            }, 10);
+        }
+
+        // Obter status de uma tarefa
+        function getTaskStatus(task) {
+            const checkboxStates = checkboxOrder.map(checkbox => task[checkbox.id]);
+            
+            if (checkboxStates.every(check => check)) {
+                return 'Concluído';
+            } else if (checkboxStates.some(check => check)) {
+                return 'Em progresso';
+            } else {
+                return 'Não iniciado';
+            }
+        }
+
+        // Exportar dados como arquivo JSON
+        function exportData() {
+            const dataStr = JSON.stringify(tasks, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `video-production-tasks-${new Date().toISOString().slice(0,10)}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+
+        // Importar dados de arquivo JSON
+        function importData(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const importedTasks = JSON.parse(e.target.result);
+                        
+                        // Garantir que todos os campos existam
+                        tasks = importedTasks.map(task => {
+                            let updatedTask = {...task};
+                            
+                            // Adicionar os novos campos se não existirem
+                            if (updatedTask.exportedDone === undefined) {
+                                updatedTask.exportedDone = false;
+                            }
+                            if (updatedTask.audacityDone === undefined) {
+                                updatedTask.audacityDone = false;
+                            }
+                            
+                            return updatedTask;
+                        });
+                        
+                        saveTasks();
+                        renderCalendar();
+                        renderTasks();
+                    } catch (error) {
+                        alert('Erro ao importar arquivo. Certifique-se de que é um JSON válido.');
+                        console.error('Erro importando arquivo:', error);
+                    }
+                };
+                reader.readAsText(file);
+            }
+        }
+    </script>
+</body>
+</html>
