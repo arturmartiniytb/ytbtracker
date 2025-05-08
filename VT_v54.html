@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Acompanhamento de Produção de Vídeos</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+        
+        body {
+            background-color: #f9fafb;
+            color: #1f2937;
+            line-height: 1.5;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 15px;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #4361ee, #4f46e5);
+            color: white;
+            padding: 15px 0;
+            margin-bottom: 20px;
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .app-title {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .creator-info {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 14px;
+        }
+        
+        .creator-credit {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .coffee-icon {
+            color: #FFDD00;
+        }
+        
+        .github-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background-color: white;
+            color: #4361ee;
+            padding: 4px 12px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .github-link:hover {
+            background-color: #f3f4f6;
+            transform: translateY(-2px);
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            font-size: 14px;
+        }
+        
+        .btn-primary {
+            background-color: #4361ee;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #3a56d4;
+        }
+        
+        .btn-white {
+            background-color: white;
+            color: #4361ee;
+        }
+        
+        .btn-white:hover {
+            background-color: #f3f4f6;
+        }
+        
+        .btn-danger {
+            background-color: #ef4444;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #dc2626;
+        }
+        
+        .section {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .section-content {
+            padding: 15px;
+            overflow-x: auto;
+        }
+        
+        /* Estatísticas */
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-card-today {
+            background-color: #eff6ff;
+            border-top: 4px solid #3b82f6;
+        }
+        
+        .stat-card-completed {
+            background-color: #ecfdf5;
+            border-top: 4px solid #10b981;
+        }
+        
+        .stat-card-month {
+            background-color: #f5f3ff;
+            border-top: 4px solid #8b5cf6;
+        }
+        
+        .stat-card-year {
+            background-color: #fffbeb;
+            border-top: 4px solid #f59e0b;
+        }
+        
+        .stat-icon {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #6b7280;
+            font-size: 14px;
+        }
+        
+        /* Tabela de produção */
+        .production-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        }
+        
+        .production-table th,
+        .production-table td {
+            border: 1px solid #e5e7eb;
+            padding: 10px;
+        }
+        
+        .production-table th {
+            background-color: #f3f4f6;
+            font-weight: 500;
+            text-align: center;
+        }
+        
+        .channel-name {
+            background-color: #f8fafc;
+            font-weight: 600;
+            position: sticky;
+            left: 0;
+            z-index: 10;
+            min-width: 120px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .channel-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .channel-delete-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #ef4444;
+            margin-left: 5px;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+        }
+        
+        .channel-delete-btn:hover {
+            opacity: 1;
+        }
+        
+        .day-col {
+            min-width: 160px;
+            vertical-align: top;
+            height: 110px;
+            transition: background-color 0.2s;
+        }
+        
+        .day-col:hover {
+            background-color: #f9fafb;
+            cursor: pointer;
+        }
+        
+        /* Cartões de tarefas */
+        .task-card {
+            border-radius: 6px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            padding: 12px;
+            margin-bottom: 10px;
+            position: relative;
+            border-left: 4px solid #4361ee;
+            transition: all 0.2s ease;
+        }
+        
+        .task-card:hover {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .task-id {
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .task-title-tooltip {
+            display: none;
+            position: absolute;
+            left: 5px;
+            right: 5px;
+            top: 100%;
+            background-color: white;
+            padding: 8px;
+            border-radius: 0 0 6px 6px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 20;
+            font-size: 14px;
+            max-width: calc(100% - 10px);
+            word-break: break-word;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .task-card:hover .task-title-tooltip {
+            display: block;
+        }
+        
+        .task-progress {
+            height: 4px;
+            background-color: #e5e7eb;
+            border-radius: 2px;
+            margin: 8px 0;
+        }
+        
+        .task-progress-bar {
+            height: 100%;
+            border-radius: 2px;
+        }
+        
+        /* Status cores */
+        .progress-not-started { background-color: #9ca3af; }
+        .progress-in-progress { background-color: #f59e0b; }
+        .progress-almost-done { background-color: #8b5cf6; }
+        .progress-completed { background-color: #10b981; }
+        
+        /* Card status backgrounds */
+        .card-not-started { background-color: white; }
+        .card-in-progress { background-color: #fffbeb; }
+        .card-almost-done { background-color: #f5f3ff; }
+        .card-completed { background-color: #ecfdf5; }
+        
+        /* Cores dos canais */
+        .channel-color-1 { background-color: #f472b6; }
+        .channel-color-2 { background-color: #60a5fa; }
+        .channel-color-3 { background-color: #34d399; }
+        .channel-color-4 { background-color: #a78bfa; }
+        .channel-color-5 { background-color: #fbbf24; }
+        .channel-color-6 { background-color: #fb7185; }
+        
+        /* Etapas de produção com ícones */
+        .stage-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #9ca3af;
+            transition: all 0.2s ease;
+            background-color: #f3f4f6;
+        }
+        
+        .stage-icon.completed {
+            background-color: #10b981;
+            color: white;
+        }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background-color: white;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .modal-header {
+            padding: 15px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            color: #6b7280;
+        }
+        
+        .modal-body {
+            padding: 15px;
+        }
+        
+        .modal-footer {
+            padding: 15px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        
+        /* Formulário */
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #374151;
+            font-size: 14px;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: #4361ee;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+        
+        textarea.form-control {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .form-check {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .form-check-input {
+            width: 16px;
+            height: 16px;
+            margin-right: 8px;
+            cursor: pointer;
+        }
+        
+        .form-checks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        
+        /* Calendário */
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .calendar-month {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .calendar-controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .calendar-today {
+            background-color: #eff6ff !important;
+        }
+        
+        /* Notificação */
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #1f2937;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .notification.show {
+            opacity: 1;
+        }
+        
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 500;
+            background-color: #e5e7eb;
+            color: #4b5563;
+        }
+        
+        /* Drag and Drop */
+        .dragging {
+            opacity: 0.7;
+        }
+        
+        .drag-over {
+            background-color: #eff6ff;
+            border: 2px dashed #4361ee;
+        }
+        
+        /* Gerenciamento de canais */
+        .channel-manager {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .channel-item {
+            display: flex;
+            align-items: center;
+            padding: 5px 10px;
+            border-radius: 4px;
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+        }
+        
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .production-table {
+                min-width: 800px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="container header-content">
+            <h1 class="app-title">Sistema de Produção de Vídeos</h1>
+            <div class="header-actions">
+                <button id="exportBtn" class="btn btn-white">
+                    <i class="fas fa-download"></i> Exportar
+                </button>
+                <label for="importFile" class="btn btn-white" style="margin: 0;">
+                    <i class="fas fa-upload"></i> Importar
+                </label>
+                <input type="file" id="importFile" hidden accept=".json">
+                <button id="addVideoBtn" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Novo Vídeo
+                </button>
+            </div>
+            <div class="creator-info">
+                <div class="creator-credit">
+                    <span>Criado por Artur Martini.</span>
+                    <span><i class="fas fa-mug-hot coffee-icon"></i> Me pague um café: Pix 51996668204</span>
+                </div>
+                <a href="https://github.com/arturmartiniytb/ytbtracker" target="_blank" class="github-link">
+                    <i class="fab fa-github"></i> Última versão
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Estatísticas -->
+        <div class="stats-container">
+            <div class="stat-card stat-card-today">
+                <i class="fas fa-calendar-day stat-icon" style="color: #3b82f6;"></i>
+                <div class="stat-value" id="todayTasksCount">0</div>
+                <div class="stat-label">Vídeos para hoje</div>
+            </div>
+            <div class="stat-card stat-card-completed">
+                <i class="fas fa-check-circle stat-icon" style="color: #10b981;"></i>
+                <div class="stat-value" id="completedTasksCount">0</div>
+                <div class="stat-label">Vídeos concluídos</div>
+            </div>
+            <div class="stat-card stat-card-month">
+                <i class="fas fa-calendar-alt stat-icon" style="color: #8b5cf6;"></i>
+                <div class="stat-value" id="monthTasksCount">0</div>
+                <div class="stat-label">Total no mês</div>
+            </div>
+            <div class="stat-card stat-card-year">
+                <i class="fas fa-chart-line stat-icon" style="color: #f59e0b;"></i>
+                <div class="stat-value" id="yearTasksCount">0</div>
+                <div class="stat-label">Total no ano</div>
+            </div>
+        </div>
+        
+        <!-- Calendário de Produção -->
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title"><i class="far fa-calendar-alt"></i> Calendário de Produção</h2>
+                <div class="calendar-controls">
+                    <button id="prevMonthBtn" class="btn">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <div class="calendar-month" id="currentMonthDisplay"></div>
+                    <button id="nextMonthBtn" class="btn">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="section-content">
+                <div id="productionTable"></div>
+            </div>
+        </div>
+        
+        <!-- Gerenciador de Canais -->
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title"><i class="fas fa-tags"></i> Canais</h2>
+            </div>
+            <div class="section-content">
+                <div id="channelManager" class="channel-manager">
+                    <!-- Canais serão inseridos aqui dinamicamente -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Vídeo -->
+    <div class="modal" id="videoModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">Adicionar Novo Vídeo</h3>
+                <button class="modal-close" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="videoForm">
+                    <input type="hidden" id="videoId">
+                    
+                    <div class="form-group">
+                        <label for="channel" class="form-label">Canal</label>
+                        <input type="text" id="channel" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="videoCode" class="form-label">Código do Vídeo (opcional)</label>
+                        <input type="text" id="videoCode" class="form-control">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="title" class="form-label">Título do Vídeo</label>
+                        <input type="text" id="title" class="form-control" required maxlength="400">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description" class="form-label">Descrição</label>
+                        <textarea id="description" class="form-control" maxlength="2000"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="scheduledDate" class="form-label">Data Programada</label>
+                        <input type="date" id="scheduledDate" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Etapas de Produção</label>
+                        <div class="form-checks-grid">
+                            <div class="form-check">
+                                <input type="checkbox" id="scriptDone" class="form-check-input">
+                                <label for="scriptDone"><i class="fas fa-file-alt"></i> Roteiro</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" id="narrationDone" class="form-check-input">
+                                <label for="narrationDone"><i class="fas fa-microphone"></i> Narração</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" id="audacityDone" class="form-check-input">
+                                <label for="audacityDone"><i class="fas fa-volume-up"></i> Audacity</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" id="imagesDone" class="form-check-input">
+                                <label for="imagesDone"><i class="fas fa-images"></i> Imagens</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" id="editingDone" class="form-check-input">
+                                <label for="editingDone"><i class="fas fa-film"></i> Edição</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" id="coverDone" class="form-check-input">
+                                <label for="coverDone"><i class="fas fa-image"></i> Capa</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" id="exportedDone" class="form-check-input">
+                                <label for="exportedDone"><i class="fas fa-file-export"></i> Exportado</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" id="onlineDone" class="form-check-input">
+                                <label for="onlineDone"><i class="fas fa-cloud-upload-alt"></i> Online</label>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="cancelBtn">Cancelar</button>
+                <button class="btn btn-primary" id="saveVideoBtn">Salvar Vídeo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notificação -->
+    <div id="notification" class="notification">Dados salvos com sucesso!</div>
+
+    <!-- JavaScript -->
+    <script>
+        // Modelo de dados
+        let videos = [];
+        let editingVideoId = null;
+        
+        // Definição de etapas
+        const STAGES = [
+            { id: 'scriptDone', name: 'Roteiro', icon: 'fa-file-alt' },
+            { id: 'narrationDone', name: 'Narração', icon: 'fa-microphone' },
+            { id: 'audacityDone', name: 'Audacity', icon: 'fa-volume-up' },
+            { id: 'imagesDone', name: 'Imagens', icon: 'fa-images' },
+            { id: 'editingDone', name: 'Edição', icon: 'fa-film' },
+            { id: 'coverDone', name: 'Capa', icon: 'fa-image' },
+            { id: 'exportedDone', name: 'Exportado', icon: 'fa-file-export' },
+            { id: 'onlineDone', name: 'Online', icon: 'fa-cloud-upload-alt' }
+        ];
+        
+        // Controle do Calendário
+        const calendar = {
+            currentMonth: new Date(),
+            
+            prevMonth() {
+                this.currentMonth = new Date(this.currentMonth.getFullYear(), this.currentMonth.getMonth() - 1, 1);
+                updateCalendar();
+            },
+            
+            nextMonth() {
+                this.currentMonth = new Date(this.currentMonth.getFullYear(), this.currentMonth.getMonth() + 1, 1);
+                updateCalendar();
+            }
+        };
+        
+        // Controle do Modal
+        const modal = {
+            element: document.getElementById('videoModal'),
+            currentChannel: null,
+            currentDate: null,
+            
+            open(channel = null, date = null) {
+                this.currentChannel = channel;
+                this.currentDate = date;
+                
+                if (channel) {
+                    document.getElementById('channel').value = channel;
+                }
+                
+                if (date) {
+                    document.getElementById('scheduledDate').value = date;
+                }
+                
+                this.element.classList.add('show');
+            },
+            
+            close() {
+                this.element.classList.remove('show');
+                document.getElementById('videoForm').reset();
+                editingVideoId = null;
+                this.currentChannel = null;
+                this.currentDate = null;
+                document.getElementById('modalTitle').textContent = 'Adicionar Novo Vídeo';
+            }
+        };
+        
+        // Utilidades
+        function generateUniqueId() {
+            return 'video-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+        }
+        
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('pt-BR');
+        }
+        
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add('show');
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        function getCompletionStatus(video) {
+            const totalStages = STAGES.length;
+            const completedStages = STAGES.filter(stage => video[stage.id]).length;
+            const percentage = Math.round((completedStages / totalStages) * 100);
+            
+            if (percentage === 0) return { status: 'not-started', label: 'Não iniciado' };
+            if (percentage === 100) return { status: 'completed', label: 'Concluído' };
+            if (percentage >= 75) return { status: 'almost-done', label: 'Quase pronto' };
+            return { status: 'in-progress', label: 'Em progresso' };
+        }
+        
+        function getUniqueChannels() {
+            const channels = videos.map(video => video.channel);
+            return [...new Set(channels)].sort();
+        }
+        
+        function getChannelColorClass(channel) {
+            // Gerar um índice baseado no nome do canal
+            const index = channel.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 6;
+            return `channel-color-${index + 1}`;
+        }
+        
+        // Persistência de dados
+        function saveToLocalStorage() {
+            localStorage.setItem('videoProductionData', JSON.stringify(videos));
+            showNotification('Dados salvos com sucesso!');
+        }
+        
+        function loadFromLocalStorage() {
+            const savedData = localStorage.getItem('videoProductionData');
+            if (savedData) {
+                videos = JSON.parse(savedData);
+                updateInterface();
+            }
+        }
+        
+        function exportData() {
+            const dataStr = JSON.stringify(videos, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'producao-videos-' + new Date().toISOString().split('T')[0] + '.json';
+            link.click();
+        }
+        
+        function importData(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (Array.isArray(importedData)) {
+                        videos = importedData;
+                        saveToLocalStorage();
+                        updateInterface();
+                        showNotification('Dados importados com sucesso!');
+                    } else {
+                        alert('Formato de arquivo inválido.');
+                    }
+                } catch (error) {
+                    alert('Erro ao importar arquivo: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        // Gerenciamento de vídeos
+        function addVideo(videoData) {
+            if (!videoData.id) {
+                videoData.id = generateUniqueId();
+            }
+            videoData.createdAt = videoData.createdAt || new Date().toISOString();
+            videos.push(videoData);
+            saveToLocalStorage();
+            updateInterface();
+        }
+        
+        function updateVideo(id, videoData) {
+            const index = videos.findIndex(video => video.id === id);
+            if (index !== -1) {
+                videos[index] = { ...videos[index], ...videoData, updatedAt: new Date().toISOString() };
+                saveToLocalStorage();
+                updateInterface();
+            }
+        }
+        
+        function toggleVideoStage(id, stageId) {
+            const index = videos.findIndex(video => video.id === id);
+            if (index !== -1) {
+                videos[index][stageId] = !videos[index][stageId];
+                videos[index].updatedAt = new Date().toISOString();
+                saveToLocalStorage();
+                updateInterface();
+            }
+        }
+        
+        function deleteVideo(id) {
+            if (confirm('Tem certeza que deseja excluir este vídeo?')) {
+                videos = videos.filter(video => video.id !== id);
+                saveToLocalStorage();
+                updateInterface();
+            }
+        }
+        
+        function deleteChannel(channel) {
+            if (confirm(`Tem certeza que deseja excluir TODOS os vídeos do canal "${channel}"?`)) {
+                videos = videos.filter(video => video.channel !== channel);
+                saveToLocalStorage();
+                updateInterface();
+                showNotification(`Canal "${channel}" excluído com sucesso!`);
+            }
+        }
+        
+        // Atualização da Interface
+        function updateInterface() {
+            updateStats();
+            updateChannelManager();
+            updateCalendar();
+        }
+        
+        function updateStats() {
+            const today = new Date().toISOString().split('T')[0];
+            const currentMonth = today.substring(0, 7); // YYYY-MM
+            const currentYear = today.substring(0, 4); // YYYY
+            
+            // Contar vídeos para hoje
+            const todayVideos = videos.filter(video => video.scheduledDate === today);
+            document.getElementById('todayTasksCount').textContent = todayVideos.length;
+            
+            // Contar vídeos concluídos
+            const completedVideos = videos.filter(video => {
+                const status = getCompletionStatus(video);
+                return status.status === 'completed';
+            });
+            document.getElementById('completedTasksCount').textContent = completedVideos.length;
+            
+            // Contar vídeos do mês atual
+            const monthVideos = videos.filter(video => video.scheduledDate.startsWith(currentMonth));
+            document.getElementById('monthTasksCount').textContent = monthVideos.length;
+            
+            // Contar vídeos do ano atual
+            const yearVideos = videos.filter(video => video.scheduledDate.startsWith(currentYear));
+            document.getElementById('yearTasksCount').textContent = yearVideos.length;
+        }
+        
+        function updateChannelManager() {
+            const channelManagerContainer = document.getElementById('channelManager');
+            const channels = getUniqueChannels();
+            
+            let html = '';
+            
+            // Se não houver canais
+            if (channels.length === 0) {
+                html = '<div>Nenhum canal cadastrado. Adicione vídeos para criar canais.</div>';
+            } else {
+                // Listar todos os canais com botão de excluir
+                channels.forEach(channel => {
+                    const channelColorClass = getChannelColorClass(channel);
+                    html += `
+                        <div class="channel-item">
+                            <span class="channel-indicator ${channelColorClass}"></span>
+                            <span>${channel}</span>
+                            <button class="channel-delete-btn" onclick="deleteChannel('${channel}')" title="Excluir canal">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    `;
+                });
+            }
+            
+            channelManagerContainer.innerHTML = html;
+        }
+        
+        function updateCalendar() {
+            const productionTable = document.getElementById('productionTable');
+            const currentDate = new Date();
+            const displayDate = calendar.currentMonth;
+            const year = displayDate.getFullYear();
+            const month = displayDate.getMonth();
+            
+            // Atualizar exibição do mês atual
+            document.getElementById('currentMonthDisplay').textContent = 
+                displayDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+            
+            // Determinar o primeiro e último dia do mês
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            
+            // Obter canais
+            const channels = getUniqueChannels();
+            
+            if (channels.length === 0) {
+                productionTable.innerHTML = '<div style="text-align: center; padding: 20px;">Nenhum canal cadastrado. Adicione vídeos para visualizar o calendário.</div>';
+                return;
+            }
+            
+            // Construir tabela
+            let tableHTML = '<table class="production-table">';
+            
+            // Cabeçalho com dias do mês
+            tableHTML += '<thead><tr><th></th>';
+            
+            for (let day = 1; day <= daysInMonth; day++) {
+                const isToday = currentDate.getDate() === day && 
+                                currentDate.getMonth() === month && 
+                                currentDate.getFullYear() === year;
+                
+                tableHTML += `<th>${day}</th>`;
+            }
+            
+            tableHTML += '</tr></thead><tbody>';
+            
+            // Linhas para cada canal
+            channels.forEach(channel => {
+                const channelColorClass = getChannelColorClass(channel);
+                
+                tableHTML += `
+                    <tr>
+                        <td class="channel-name">
+                            <span class="channel-indicator ${channelColorClass}"></span>
+                            ${channel}
+                        </td>
+                `;
+                
+                // Células para cada dia
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const cellDate = new Date(year, month, day).toISOString().split('T')[0];
+                    const isToday = currentDate.getDate() === day && 
+                                    currentDate.getMonth() === month && 
+                                    currentDate.getFullYear() === year;
+                    
+                    tableHTML += `
+                        <td class="day-col ${isToday ? 'calendar-today' : ''}" 
+                            data-date="${cellDate}" 
+                            data-channel="${channel}"
+                            onclick="addNewVideo('${channel}', '${cellDate}')"
+                            ondragover="handleDragOver(event)"
+                            ondrop="handleDrop(event)"
+                            ondragleave="handleDragLeave(event)">
+                    `;
+                    
+                    // Filtrar vídeos para este dia e canal
+                    const dayVideos = videos.filter(video => 
+                        video.scheduledDate === cellDate && 
+                        video.channel === channel
+                    );
+                    
+                    // Adicionar cards para cada vídeo
+                    dayVideos.forEach(video => {
+                        const status = getCompletionStatus(video);
+                        const progress = Math.round((STAGES.filter(stage => video[stage.id]).length / STAGES.length) * 100);
+                        const channelColor = channelColorClass.split('-')[2];
+                        
+                        tableHTML += `
+                            <div class="task-card card-${status.status}" 
+                                draggable="true"
+                                data-id="${video.id}"
+                                ondragstart="handleDragStart(event, '${video.id}')"
+                                ondragend="handleDragEnd(event)"
+                                onclick="event.stopPropagation()"
+                                style="border-left-color: #${channelColor}; position: relative;">
+                                <div style="position: absolute; top: 8px; right: 8px;">
+                                    <button onclick="editVideo('${video.id}')" 
+                                            style="background: none; border: none; cursor: pointer; margin-left: 2px;"
+                                            title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button onclick="deleteVideo('${video.id}')" 
+                                            style="background: none; border: none; cursor: pointer; margin-left: 2px;"
+                                            title="Excluir">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                                <div class="task-id" style="margin-right: 55px;">
+                                    ${channel} ${video.videoCode ? `#${video.videoCode}` : ''}
+                                    <span class="badge">${progress}%</span>
+                                </div>
+                                <div class="task-title-tooltip">${video.title}</div>
+                                <div class="task-progress">
+                                    <div class="task-progress-bar progress-${status.status}" style="width: ${progress}%;"></div>
+                                </div>
+                                <div style="display: flex; flex-wrap: nowrap; gap: 5px; margin-top: 8px; overflow-x: auto;">
+                                    ${STAGES.map(stage => `
+                                        <div class="stage-icon ${video[stage.id] ? 'completed' : ''}" 
+                                             onclick="toggleVideoStage('${video.id}', '${stage.id}')"
+                                             title="${stage.name}">
+                                            <i class="fas ${stage.icon}"></i>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    tableHTML += '</td>';
+                }
+                
+                tableHTML += '</tr>';
+            });
+            
+            tableHTML += '</tbody></table>';
+            
+            productionTable.innerHTML = tableHTML;
+        }
+        
+        // Adicionar novo vídeo clicando em célula vazia
+        function addNewVideo(channel, date) {
+            document.getElementById('videoForm').reset();
+            document.getElementById('videoId').value = '';
+            document.getElementById('modalTitle').textContent = 'Adicionar Novo Vídeo';
+            modal.open(channel, date);
+        }
+        
+        // Formulário de vídeo
+        function editVideo(videoId) {
+            const video = videos.find(v => v.id === videoId);
+            if (!video) return;
+            
+            // Preencher formulário
+            document.getElementById('videoId').value = video.id;
+            document.getElementById('channel').value = video.channel;
+            document.getElementById('videoCode').value = video.videoCode || '';
+            document.getElementById('title').value = video.title;
+            document.getElementById('description').value = video.description || '';
+            document.getElementById('scheduledDate').value = video.scheduledDate;
+            
+            // Marcar checkboxes
+            STAGES.forEach(stage => {
+                document.getElementById(stage.id).checked = video[stage.id] || false;
+            });
+            
+            // Atualizar título do modal
+            document.getElementById('modalTitle').textContent = 'Editar Vídeo';
+            
+            // Abrir modal
+            modal.open();
+        }
+        
+        function saveVideoForm() {
+            // Coletar dados do formulário
+            const videoId = document.getElementById('videoId').value;
+            const videoData = {
+                channel: document.getElementById('channel').value,
+                videoCode: document.getElementById('videoCode').value,
+                title: document.getElementById('title').value,
+                description: document.getElementById('description').value,
+                scheduledDate: document.getElementById('scheduledDate').value
+            };
+            
+            // Adicionar status das etapas
+            STAGES.forEach(stage => {
+                videoData[stage.id] = document.getElementById(stage.id).checked;
+            });
+            
+            // Adicionar ou atualizar vídeo
+            if (videoId) {
+                updateVideo(videoId, videoData);
+            } else {
+                addVideo(videoData);
+            }
+            
+            // Fechar modal
+            modal.close();
+        }
+        
+        // Funcionalidades de arrastar e soltar
+        let draggedVideoId = null;
+        
+        function handleDragStart(event, videoId) {
+            draggedVideoId = videoId;
+            event.target.classList.add('dragging');
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', videoId);
+        }
+        
+        function handleDragEnd(event) {
+            event.target.classList.remove('dragging');
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        }
+        
+        function handleDragOver(event) {
+            event.preventDefault();
+            const cell = findDayCell(event.target);
+            if (cell && draggedVideoId) {
+                cell.classList.add('drag-over');
+            }
+        }
+        
+        function handleDragLeave(event) {
+            const cell = findDayCell(event.target);
+            if (cell) {
+                cell.classList.remove('drag-over');
+            }
+        }
+        
+        function handleDrop(event) {
+            event.preventDefault();
+            const cell = findDayCell(event.target);
+            
+            if (!cell || !draggedVideoId) return;
+            
+            cell.classList.remove('drag-over');
+            
+            const newDate = cell.getAttribute('data-date');
+            const newChannel = cell.getAttribute('data-channel');
+            
+            if (newDate && newChannel) {
+                const videoIndex = videos.findIndex(v => v.id === draggedVideoId);
+                if (videoIndex !== -1) {
+                    videos[videoIndex].scheduledDate = newDate;
+                    videos[videoIndex].channel = newChannel;
+                    videos[videoIndex].updatedAt = new Date().toISOString();
+                    
+                    saveToLocalStorage();
+                    updateInterface();
+                }
+            }
+            
+            draggedVideoId = null;
+        }
+        
+        function findDayCell(element) {
+            // Encontra o elemento pai que é uma célula do dia
+            let current = element;
+            while (current && !current.classList.contains('day-col')) {
+                current = current.parentElement;
+                if (!current || current === document.body) return null;
+            }
+            return current;
+        }
+        
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            // Carregar dados do localStorage
+            loadFromLocalStorage();
+            
+            // Event listeners para controles do calendário
+            document.getElementById('prevMonthBtn').addEventListener('click', () => calendar.prevMonth());
+            document.getElementById('nextMonthBtn').addEventListener('click', () => calendar.nextMonth());
+            
+            // Event listener para modal
+            document.getElementById('addVideoBtn').addEventListener('click', function() {
+                document.getElementById('videoForm').reset();
+                document.getElementById('videoId').value = '';
+                document.getElementById('modalTitle').textContent = 'Adicionar Novo Vídeo';
+                
+                // Definir data atual como padrão
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('scheduledDate').value = today;
+                
+                modal.open();
+            });
+            
+            document.getElementById('closeModal').addEventListener('click', () => modal.close());
+            document.getElementById('cancelBtn').addEventListener('click', () => modal.close());
+            document.getElementById('saveVideoBtn').addEventListener('click', saveVideoForm);
+            
+            // Event listener para importação/exportação
+            document.getElementById('exportBtn').addEventListener('click', exportData);
+            document.getElementById('importFile').addEventListener('change', function(e) {
+                if (this.files.length > 0) {
+                    importData(this.files[0]);
+                }
+            });
+            
+            // Expor funções globalmente
+            window.editVideo = editVideo;
+            window.deleteVideo = deleteVideo;
+            window.deleteChannel = deleteChannel;
+            window.toggleVideoStage = toggleVideoStage;
+            window.handleDragStart = handleDragStart;
+            window.handleDragEnd = handleDragEnd;
+            window.handleDragOver = handleDragOver;
+            window.handleDragLeave = handleDragLeave;
+            window.handleDrop = handleDrop;
+            window.addNewVideo = addNewVideo;
+        });
+    </script>
+</body>
+</html>
+            
